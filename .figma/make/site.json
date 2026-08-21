@@ -1,0 +1,12 @@
+{
+  "title": "המשלים שלי",
+  "language": "he",
+  "description": "Delivers a pixel-perfect, Hebrew RTL web interface matching exact Figma designs for precise content display with consistent layout and typography.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
