@@ -31,7 +31,7 @@ export function SentenceComposer({ ctaLabel, placeholder, onSubmit }: SentenceCo
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex w-full max-w-[420px] flex-col items-stretch gap-2 sm:flex-row sm:items-center"
+      className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center"
       aria-label={ctaLabel}
     >
       <Input

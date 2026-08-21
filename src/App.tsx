@@ -23,8 +23,6 @@ export default function App() {
         subtitle={TAGLINE}
         ctaLabel="התחל משפט"
         composerPlaceholder="כתבו את תחילת המשפט…"
-        examplePrompt="אם הייתי זוכה במיליון שקל..."
-        exampleReply="מה היית עושים?"
       />
 
       <Section>
