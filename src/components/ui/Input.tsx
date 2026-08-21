@@ -4,6 +4,7 @@ import { cn } from '@/lib/cn'
 
 export type InputSize = 'sm' | 'md' | 'lg'
 
+/** Heights come from the same control scale as Button, so the two line up. */
 const sizeStyles: Record<InputSize, string> = {
   sm: 'h-8 px-3 text-body-sm',
   md: 'h-10 px-3 text-body',
@@ -16,6 +17,10 @@ type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> & {
   error?: string
   inputSize?: InputSize
   iconStart?: ReactNode
+  /** Adornment pinned inside the field at the inline end (counters, units). */
+  trailing?: ReactNode
+  /** Applied to the field wrapper rather than the <input> itself. */
+  containerClassName?: string
 }
 
 /**
@@ -29,6 +34,8 @@ export function Input({
   error,
   inputSize = 'md',
   iconStart,
+  trailing,
+  containerClassName,
   className,
   id,
   disabled,
@@ -40,7 +47,7 @@ export function Input({
   const invalid = Boolean(error)
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={cn('flex flex-col gap-1.5', containerClassName)}>
       {label ? (
         <label htmlFor={inputId} className="text-label font-medium text-content-secondary">
           {label}
@@ -62,15 +69,22 @@ export function Input({
           className={cn(
             'w-full rounded-md border bg-surface text-content-primary',
             'placeholder:text-content-muted transition-colors duration-150',
-            'focus:outline-none focus-visible:border-focus',
+            /* Keeps the global :focus-visible outline so the field matches
+               every other control's focus treatment. */
+            'focus-visible:border-focus',
             sizeStyles[inputSize],
             Boolean(iconStart) && 'ps-9',
+            Boolean(trailing) && 'pe-24',
             invalid ? 'border-danger' : 'border-border hover:border-border-strong',
             disabled && 'cursor-not-allowed bg-surface-hover opacity-60',
             className,
           )}
           {...rest}
         />
+
+        {trailing ? (
+          <span className="pointer-events-none absolute end-4 flex items-center">{trailing}</span>
+        ) : null}
       </div>
 
       {error ? (
