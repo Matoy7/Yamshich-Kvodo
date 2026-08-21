@@ -18,13 +18,7 @@ export default function App() {
       pageTitle="בית"
       hasNotifications
     >
-      <HeroBanner
-        title={PRODUCT_NAME}
-        subtitle={TAGLINE}
-        ctaLabel="התחל משפט"
-        examplePrompt="אם הייתי זוכה במיליון שקל..."
-        exampleInvitation="מה היית עושה?"
-      />
+      <HeroBanner title={PRODUCT_NAME} subtitle={TAGLINE} ctaLabel="התחל משפט" />
 
       <Section>
         <SentenceGrid sentences={sentences} />
