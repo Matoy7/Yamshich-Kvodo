@@ -20,6 +20,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Fetch Git LFS content if anything is still LFS-tracked, so assets
+          # are never checked out as pointer stubs.
+          lfs: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
