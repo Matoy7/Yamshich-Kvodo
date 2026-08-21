@@ -55,7 +55,7 @@ Only the minimum required to make the existing Figma Make output deployable as a
 - `vite.config.ts`: build `base` defaults to `./` (relative) instead of `/`, so asset/script URLs resolve correctly when the site is served from a GitHub Pages repository sub-path.
 - `src/App.tsx`: the local `assetPathPrefix` now uses `import.meta.env.BASE_URL` instead of a hard-coded absolute `/assets` path, for the same reason (this only affects how the URL is built — the images, icons, and everything else are unchanged).
 - `index.html`: added `dir="rtl"` on `<html>` (in addition to the existing `lang` templating) for correct document-level RTL semantics. This doesn't change any rendering — the app's root element already sets its own explicit `dir` for layout.
-- `.figma/make/site.json`: set `title` to "המשלים שלי" and `language` to `he` (previously an untitled/English-default placeholder), which only affects the browser tab title and `<html lang>` — no visible UI change.
+- `.figma/make/site.json`: set `title` to "ימשיך כבודו" and `language` to `he` (previously an untitled/English-default placeholder), which only affects the browser tab title and `<html lang>` — no visible UI change.
 - Added `public/.nojekyll` so GitHub Pages serves the build as-is without Jekyll processing.
 - Added `.github/workflows/deploy.yml` for automatic build + deploy on push to `main`.
 - Replaced `pnpm-lock.yaml` with a generated `package-lock.json` so `npm install` / `npm ci` work as specified (the project itself still uses only `npm`-standard tooling).
@@ -66,13 +66,33 @@ Note: `.figma/make/site.json` still has `robots.index: false`, which was already
 
 ```
 ├── src/
-│   ├── App.tsx        # Main app component (Figma Make output, unmodified UI)
-│   ├── main.tsx        # React entry point
-│   └── index.css       # Tailwind v4 entry + font import
-├── public/
-│   └── assets/          # Images/icons used by the app
+│   ├── index.css                 # Design tokens (@theme) + base layer
+│   ├── main.tsx                  # React entry point
+│   ├── App.tsx                   # Home page composition
+│   ├── lib/
+│   │   ├── cn.ts                 # Class-name composer
+│   │   └── assets.ts             # Static asset registry (BASE_URL aware)
+│   ├── data/                     # Navigation + sentence feed data
+│   ├── components/
+│   │   ├── ui/                   # Button, Card, Badge, Avatar, Input,
+│   │   │                         # IconButton, Icon, EmptyState
+│   │   └── layout/               # DashboardLayout, Sidebar, MobileNav,
+│   │                             # Topbar, Section
+│   └── features/home/            # HeroBanner, SentenceCard, SentenceGrid
+├── public/assets/                # Original Figma Make image/icon exports
+├── scripts/verify-assets.mjs     # Build guard: fails on Git LFS pointers
 ├── index.html
 ├── vite.config.ts
 ├── package.json
 └── .github/workflows/deploy.yml
 ```
+
+## Design system
+
+All design decisions live as tokens in `src/index.css` under Tailwind v4's
+`@theme` block — spacing (4px base), semantic colours, typography scale,
+radius scale, elevation and control heights. Components consume them as
+utilities (`bg-surface`, `text-content-muted`, `rounded-lg`, `shadow-card`).
+
+Do not hardcode colours, radii, shadows or control heights in components;
+add or adjust a token instead.
