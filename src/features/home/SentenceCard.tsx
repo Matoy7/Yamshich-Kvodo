@@ -21,14 +21,16 @@ export function SentenceCard({ text, completions, onComplete }: SentenceCardProp
         {text}
       </p>
 
+      {/* Action sits at the inline start (right in RTL); the completions
+          count at the inline end. */}
       <CardFooter className="mt-4 border-t border-border-subtle">
-        <Badge variant="neutral" iconStart={<Icon src={assets.iconPerson} size="xs" />}>
-          השלמות {completions}
-        </Badge>
-
         <Button variant="primary" size="sm" onClick={onComplete}>
           השלם
         </Button>
+
+        <Badge variant="neutral" iconStart={<Icon src={assets.iconPerson} size="xs" />}>
+          השלמות {completions}
+        </Badge>
       </CardFooter>
     </Card>
   )
