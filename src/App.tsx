@@ -11,6 +11,7 @@ import { useSession } from '@/features/auth/useSession'
 import { navItems } from '@/data/navigation'
 import { createCompletion, createSentence, type FeedView, type Sentence } from '@/data/sentences'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { assets } from '@/lib/assets'
 
 const PRODUCT_NAME = 'ימשיך כבודו'
 const TAGLINE = 'שני אנשים. משפט אחד.'
@@ -58,7 +59,24 @@ export default function App() {
   }
 
   if (sessionLoading) {
-    return <main className="min-h-screen bg-bg" aria-busy="true" aria-label="טוען" />
+    // Visible on purpose: an empty element here means a blank page whenever
+    // the session check is slow or stalls.
+    return (
+      <main
+        aria-busy="true"
+        className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg px-4"
+      >
+        <img
+          src={assets.heroIllustration}
+          alt=""
+          aria-hidden
+          width={96}
+          height={96}
+          className="size-24 animate-pulse rounded-full bg-surface-secondary object-cover"
+        />
+        <p className="text-body text-content-secondary">טוען…</p>
+      </main>
+    )
   }
 
   if (!session) {

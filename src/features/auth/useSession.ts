@@ -27,6 +27,12 @@ export function useSession(): SessionState {
 
     let active = true
 
+    // Never leave the app stuck on the loading screen: if the session check
+    // has not settled in a few seconds, fall through to the signed-out view.
+    const failSafe = window.setTimeout(() => {
+      if (active) setLoading(false)
+    }, 8000)
+
     /** Upsert once per signed-in user, and never block rendering on it. */
     const syncProfile = (next: Session | null) => {
       const user = next?.user
@@ -46,6 +52,9 @@ export function useSession(): SessionState {
         setSession(data.session)
         syncProfile(data.session)
       })
+      .catch((error) => {
+        console.error('getSession failed', error)
+      })
       .finally(() => {
         if (active) setLoading(false)
       })
@@ -63,6 +72,7 @@ export function useSession(): SessionState {
 
     return () => {
       active = false
+      window.clearTimeout(failSafe)
       subscription.subscription.unsubscribe()
     }
   }, [])
