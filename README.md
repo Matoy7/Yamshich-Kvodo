@@ -118,8 +118,22 @@ Supabase → Authentication → URL Configuration:
 
 ### 4. Keys
 
-Copy `.env.example` to `.env` for local development and fill in the project URL
-and anon key (Project Settings → API).
+Copy `.env.example` to `.env` for local development and fill in:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY` — the publishable/anon key
+
+Both are on the dashboard's **Connect** button (top bar), or under
+**Settings → API Keys**. Newer projects issue an `sb_publishable_…` key; it
+goes in the same variable.
+
+These are the only two variables the frontend uses. **The service-role /
+secret key must never appear in this repository** — it bypasses Row Level
+Security entirely.
+
+For deploys, add the same two names in GitHub → Settings → Secrets and
+variables → Actions → **Variables** (not Secrets — both values are public by
+design). The workflow passes them into the build.
 
 For deploys, add the same two names in GitHub → Settings → Secrets and variables
 → Actions → **Variables** (not Secrets — both values are public by design;

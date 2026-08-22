@@ -1,25 +1,40 @@
 -- ============================================================================
 -- ימשיך כבודו — database schema
 --
--- Run this once in the Supabase dashboard: SQL Editor → New query → paste →
--- Run. It is idempotent, so re-running is safe.
+-- Run this in the Supabase dashboard: SQL Editor → New query → paste → Run.
+-- It is idempotent, so re-running it is safe.
 --
 -- Model:
---   profiles     one row per signed-in user, created automatically on signup
+--   profiles     one row per signed-in user, keyed by the auth user id
 --   sentences    a sentence opener written by one user
 --   completions  another user's ending for a sentence (one per user per sentence)
+--
+-- No secret is referenced here. The frontend talks to this schema with the
+-- publishable/anon key only; every rule below is enforced by Postgres.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- Tables
+-- profiles
 -- ---------------------------------------------------------------------------
 
 create table if not exists public.profiles (
-  id           uuid primary key references auth.users (id) on delete cascade,
-  display_name text,
-  avatar_url   text,
-  created_at   timestamptz not null default now()
+  id         uuid primary key references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
 );
+
+-- Additive so an earlier version of this file upgrades cleanly.
+alter table public.profiles add column if not exists email      text;
+alter table public.profiles add column if not exists first_name text;
+alter table public.profiles add column if not exists last_name  text;
+alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists updated_at timestamptz not null default now();
+
+-- Superseded by first_name / last_name.
+alter table public.profiles drop column if exists display_name;
+
+-- ---------------------------------------------------------------------------
+-- sentences + completions
+-- ---------------------------------------------------------------------------
 
 create table if not exists public.sentences (
   id         uuid primary key default gen_random_uuid(),
@@ -44,7 +59,30 @@ create index if not exists completions_sentence_id_idx on public.completions (se
 create index if not exists completions_author_id_idx   on public.completions (author_id);
 
 -- ---------------------------------------------------------------------------
--- Create a profile automatically whenever a user signs up
+-- Keep profiles.updated_at honest
+-- ---------------------------------------------------------------------------
+
+create or replace function public.touch_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_touch_updated_at on public.profiles;
+create trigger profiles_touch_updated_at
+  before update on public.profiles
+  for each row execute function public.touch_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Create a profile the moment a user signs up.
+--
+-- The client also upserts the profile after sign-in; this trigger means the
+-- row exists even before that round-trip completes, so the first sentence a
+-- user writes can never fail its foreign key.
 -- ---------------------------------------------------------------------------
 
 create or replace function public.handle_new_user()
@@ -53,16 +91,20 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  meta      jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
+  full_name text  := coalesce(meta ->> 'full_name', meta ->> 'name', '');
 begin
-  insert into public.profiles (id, display_name, avatar_url)
+  insert into public.profiles (id, email, first_name, last_name, avatar_url)
   values (
     new.id,
+    new.email,
+    coalesce(nullif(meta ->> 'given_name', ''), nullif(split_part(full_name, ' ', 1), '')),
     coalesce(
-      new.raw_user_meta_data ->> 'full_name',
-      new.raw_user_meta_data ->> 'name',
-      'משתמש'
+      nullif(meta ->> 'family_name', ''),
+      nullif(btrim(substr(full_name, strpos(full_name, ' '))), '')
     ),
-    new.raw_user_meta_data ->> 'avatar_url'
+    coalesce(meta ->> 'avatar_url', meta ->> 'picture')
   )
   on conflict (id) do nothing;
   return new;
@@ -77,9 +119,13 @@ create trigger on_auth_user_created
 -- ---------------------------------------------------------------------------
 -- Row Level Security
 --
--- Everything is readable by any signed-in user (it is a social feed), but a
--- row may only be written by the user who owns it. Nothing is exposed to the
--- anonymous role.
+-- profiles     private: a user may only read and write their own row.
+-- sentences    the shared feed: readable by any signed-in user, writable only
+--              by its author.
+-- completions  same as sentences.
+--
+-- Nothing is granted to the anonymous role, so the publishable key alone
+-- reads nothing.
 -- ---------------------------------------------------------------------------
 
 alter table public.profiles    enable row level security;
@@ -88,9 +134,16 @@ alter table public.completions enable row level security;
 
 -- profiles ------------------------------------------------------------------
 drop policy if exists "profiles are readable by signed-in users" on public.profiles;
-create policy "profiles are readable by signed-in users"
+
+drop policy if exists "a user may read their own profile" on public.profiles;
+create policy "a user may read their own profile"
   on public.profiles for select to authenticated
-  using (true);
+  using ((select auth.uid()) = id);
+
+drop policy if exists "a user may create their own profile" on public.profiles;
+create policy "a user may create their own profile"
+  on public.profiles for insert to authenticated
+  with check ((select auth.uid()) = id);
 
 drop policy if exists "a user may update their own profile" on public.profiles;
 create policy "a user may update their own profile"
