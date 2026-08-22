@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { GoogleIcon } from './ProviderIcons'
 import { supabase, authRedirectUrl } from '@/lib/supabase'
+import { clearOAuthError, readOAuthError } from './oauthError'
 import { assets } from '@/lib/assets'
 
 type LoginScreenProps = {
@@ -21,10 +22,22 @@ type LoginScreenProps = {
 export function LoginScreen({ brandName, brandTagline, privacyNote }: LoginScreenProps) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [details, setDetails] = useState<string | null>(null)
+
+  // Surface a failure handed back on the callback URL instead of silently
+  // dropping the user back on this screen with no explanation.
+  useEffect(() => {
+    const failure = readOAuthError()
+    if (!failure) return
+    setError(failure.message)
+    setDetails(failure.code ? `${failure.code}: ${failure.description ?? ''}`.trim() : null)
+    clearOAuthError()
+  }, [])
 
   async function signIn() {
     setPending(true)
     setError(null)
+    setDetails(null)
 
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -66,9 +79,14 @@ export function LoginScreen({ brandName, brandTagline, privacyNote }: LoginScree
           </Button>
 
           {error ? (
-            <p role="alert" className="text-caption text-danger">
-              {error}
-            </p>
+            <div role="alert" className="flex flex-col gap-1 text-start">
+              <p className="text-caption text-danger">{error}</p>
+              {details ? (
+                <p dir="ltr" className="text-caption text-content-muted">
+                  {details}
+                </p>
+              ) : null}
+            </div>
           ) : null}
 
           <p className="text-caption text-content-muted">{privacyNote}</p>

@@ -44,6 +44,11 @@ export const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
+      // PKCE keeps the code verifier in this origin's storage. The callback
+      // must therefore return to the SAME origin that started the sign-in,
+      // otherwise the verifier is unreachable and Supabase reports
+      // `bad_oauth_state`.
+      flowType: 'pkce',
       // The provider returns the session in the URL fragment; the client picks
       // it up on load and then cleans the address bar.
       detectSessionInUrl: true,
@@ -54,11 +59,17 @@ export const supabase = createClient(
 /**
  * Where Google should send the user back to.
  *
- * Derived from the address actually being served rather than from
- * `import.meta.env.BASE_URL`: the production build uses a relative base
- * (`./`), which would resolve to the domain root and drop the
- * `/Yamshich-Kvodo/` path. Using the live pathname makes this correct on both
- * http://localhost:8443/ and https://matoy7.github.io/Yamshich-Kvodo/.
+ * Always the exact origin + path the app is being served from, so sign-in
+ * returns to the same app that started it — whatever port `npm run dev`
+ * happens to use, and preserving the `/Yamshich-Kvodo/` base on GitHub Pages.
+ * Nothing here is hardcoded.
+ *
+ * Deliberately NOT derived from `import.meta.env.BASE_URL`: the production
+ * build uses a relative base (`./`), which resolves to the domain root and
+ * drops the repository path.
+ *
+ * Query string and hash are excluded so a failed attempt's error parameters
+ * are never fed back into the next redirect.
  */
 export function authRedirectUrl(): string {
   return `${window.location.origin}${window.location.pathname}`
