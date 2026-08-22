@@ -5,25 +5,26 @@ import { MobileNav } from './MobileNav'
 import { Topbar } from './Topbar'
 
 type DashboardLayoutProps = {
-  productName: string
-  tagline: string
+  brandName: string
+  brandTagline: string
   navItems: NavItem[]
   activeNavId: string
-  pageTitle: string
+  searchPlaceholder: string
   hasNotifications?: boolean
   children: ReactNode
 }
 
 /**
- * Application shell: fixed sidebar (inline-end, RTL-aware), sticky topbar and
- * a max-width content column. All page content is rendered into `children`.
+ * Application shell: fixed sidebar (inline-start, RTL-aware) holding search and
+ * navigation, a sticky topbar carrying the brand and account controls, and a
+ * max-width content column.
  */
 export function DashboardLayout({
-  productName,
-  tagline,
+  brandName,
+  brandTagline,
   navItems,
   activeNavId,
-  pageTitle,
+  searchPlaceholder,
   hasNotifications,
   children,
 }: DashboardLayoutProps) {
@@ -31,25 +32,20 @@ export function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-bg">
-      <Sidebar
-        items={navItems}
-        activeId={activeNavId}
-        productName={productName}
-        tagline={tagline}
-      />
+      <Sidebar items={navItems} activeId={activeNavId} searchPlaceholder={searchPlaceholder} />
 
       <MobileNav
         open={navOpen}
         onClose={() => setNavOpen(false)}
         items={navItems}
         activeId={activeNavId}
-        productName={productName}
-        tagline={tagline}
+        searchPlaceholder={searchPlaceholder}
       />
 
       <div className="lg:ms-[264px]">
         <Topbar
-          title={pageTitle}
+          brandName={brandName}
+          brandTagline={brandTagline}
           hasNotifications={hasNotifications}
           onOpenNav={() => setNavOpen(true)}
         />

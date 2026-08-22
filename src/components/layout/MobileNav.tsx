@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { SidebarNav, type NavItem } from './Sidebar'
+import { SidebarNav, SidebarSearch, type NavItem } from './Sidebar'
 import { cn } from '@/lib/cn'
 
 type MobileNavProps = {
@@ -7,22 +7,14 @@ type MobileNavProps = {
   onClose: () => void
   items: NavItem[]
   activeId: string
-  productName: string
-  tagline: string
+  searchPlaceholder: string
 }
 
 /**
  * Drawer navigation for viewports below `lg`. Mirrors the desktop sidebar's
  * contents rather than introducing a separate mobile information architecture.
  */
-export function MobileNav({
-  open,
-  onClose,
-  items,
-  activeId,
-  productName,
-  tagline,
-}: MobileNavProps) {
+export function MobileNav({ open, onClose, items, activeId, searchPlaceholder }: MobileNavProps) {
   useEffect(() => {
     if (!open) return
 
@@ -60,13 +52,7 @@ export function MobileNav({
           open ? 'translate-x-0' : 'translate-x-full',
         )}
       >
-        <div className="flex flex-col gap-1 px-3">
-          <span className="text-section-title font-bold text-content-primary font-display">
-            {productName}
-          </span>
-          <span className="text-label text-content-muted">{tagline}</span>
-        </div>
-
+        <SidebarSearch placeholder={searchPlaceholder} />
         <SidebarNav items={items} activeId={activeId} onSelect={onClose} />
       </div>
     </div>

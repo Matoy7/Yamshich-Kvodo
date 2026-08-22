@@ -7,22 +7,23 @@ import { sentences } from '@/data/sentences'
 
 const PRODUCT_NAME = 'ימשיך כבודו'
 const TAGLINE = 'שני אנשים. משפט אחד.'
+const COMPOSER_PLACEHOLDER =
+  'כאן שמים את תחילת המשפט. לא צריך שלוש נקודות אנחנו נשלים אותם עבורכם. (לדוגמה "בא לי לאכול היום")'
 
 export default function App() {
   return (
     <DashboardLayout
-      productName={PRODUCT_NAME}
-      tagline={TAGLINE}
+      brandName={PRODUCT_NAME}
+      brandTagline={TAGLINE}
       navItems={navItems}
       activeNavId="home"
-      pageTitle="בית"
+      searchPlaceholder="חיפוש"
       hasNotifications
     >
       <HeroBanner
-        title={PRODUCT_NAME}
-        subtitle={TAGLINE}
+        label="התחלת משפט חדש"
         ctaLabel="התחל משפט"
-        composerPlaceholder="כתבו את תחילת המשפט…"
+        composerPlaceholder={COMPOSER_PLACEHOLDER}
       />
 
       <Section>

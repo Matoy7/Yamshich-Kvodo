@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/Input'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/cn'
 
@@ -5,6 +6,25 @@ export type NavItem = {
   id: string
   label: string
   icon: string
+}
+
+/**
+ * Search field occupying the sidebar's top slot. The 48px wrapper keeps the
+ * navigation below it at the same vertical position regardless of the
+ * control's own height.
+ */
+export function SidebarSearch({ placeholder }: { placeholder: string }) {
+  return (
+    <div className="flex h-12 items-center">
+      <Input
+        type="search"
+        inputSize="md"
+        placeholder={placeholder}
+        aria-label={placeholder}
+        containerClassName="w-full"
+      />
+    </div>
+  )
 }
 
 type SidebarNavProps = {
@@ -48,12 +68,11 @@ export function SidebarNav({ items, activeId, onSelect }: SidebarNavProps) {
 type SidebarProps = {
   items: NavItem[]
   activeId: string
-  productName: string
-  tagline: string
+  searchPlaceholder: string
 }
 
 /** Fixed desktop sidebar. Hidden below the `lg` breakpoint. */
-export function Sidebar({ items, activeId, productName, tagline }: SidebarProps) {
+export function Sidebar({ items, activeId, searchPlaceholder }: SidebarProps) {
   return (
     <aside
       className={cn(
@@ -61,13 +80,7 @@ export function Sidebar({ items, activeId, productName, tagline }: SidebarProps)
         'flex-col gap-8 border-e border-border bg-surface px-4 py-6',
       )}
     >
-      <div className="flex flex-col gap-1 px-3">
-        <span className="text-section-title font-bold text-content-primary font-display">
-          {productName}
-        </span>
-        <span className="text-label text-content-muted">{tagline}</span>
-      </div>
-
+      <SidebarSearch placeholder={searchPlaceholder} />
       <SidebarNav items={items} activeId={activeId} />
     </aside>
   )
