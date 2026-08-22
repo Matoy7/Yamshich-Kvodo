@@ -3,8 +3,7 @@ import type { FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
 
-/** Hard cap on a sentence opener, excluding the fixed ellipsis suffix. */
-export const SENTENCE_MAX_LENGTH = 120
+import { SENTENCE_MAX_LENGTH } from '@/data/sentences'
 
 /** Decorative suffix — never editable, never counted, never submitted. */
 const ELLIPSIS = '...'
@@ -12,7 +11,7 @@ const ELLIPSIS = '...'
 type SentenceComposerProps = {
   ctaLabel: string
   placeholder: string
-  onSubmit?: (value: string) => void
+  onSubmit: (value: string) => Promise<void>
 }
 
 /**
@@ -27,6 +26,8 @@ type SentenceComposerProps = {
  */
 export function SentenceComposer({ ctaLabel, placeholder, onSubmit }: SentenceComposerProps) {
   const [value, setValue] = useState('')
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [textWidth, setTextWidth] = useState(0)
   const [availableWidth, setAvailableWidth] = useState(Number.POSITIVE_INFINITY)
 
@@ -65,11 +66,21 @@ export function SentenceComposer({ ctaLabel, placeholder, onSubmit }: SentenceCo
     return () => observer.disconnect()
   }, [])
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmed = value.trim()
-    if (!trimmed) return
-    onSubmit?.(trimmed)
+    if (!trimmed || pending) return
+
+    setPending(true)
+    setError(null)
+    try {
+      await onSubmit(trimmed)
+      setValue('')
+    } catch {
+      setError('לא הצלחנו לשמור את המשפט. נסו שוב.')
+    } finally {
+      setPending(false)
+    }
   }
 
   const fieldText = 'text-card-title'
@@ -79,7 +90,7 @@ export function SentenceComposer({ ctaLabel, placeholder, onSubmit }: SentenceCo
     <form
       onSubmit={handleSubmit}
       aria-label={ctaLabel}
-      className="flex w-full flex-col items-stretch gap-1 sm:flex-row sm:items-center"
+      className="relative flex w-full flex-col items-stretch gap-1 sm:flex-row sm:items-center"
     >
       {/* Field — matches Input's `lg` geometry from the design system.
           `flex-1` is row-only: in the stacked mobile layout it would set a
@@ -109,6 +120,7 @@ export function SentenceComposer({ ctaLabel, placeholder, onSubmit }: SentenceCo
           value={value}
           onChange={(event) => setValue(event.target.value.slice(0, SENTENCE_MAX_LENGTH))}
           maxLength={SENTENCE_MAX_LENGTH}
+          disabled={pending}
           placeholder={placeholder}
           aria-label={`${placeholder}${ELLIPSIS} (עד ${SENTENCE_MAX_LENGTH} תווים)`}
           style={{ width: Number.isFinite(inputWidth) ? `${inputWidth}px` : undefined }}
@@ -137,9 +149,21 @@ export function SentenceComposer({ ctaLabel, placeholder, onSubmit }: SentenceCo
         </span>
       </div>
 
-      <Button variant="primary" size="lg" type="submit" className="w-full shrink-0 sm:w-auto">
-        {ctaLabel}
+      <Button
+        variant="primary"
+        size="lg"
+        type="submit"
+        disabled={pending || value.trim().length === 0}
+        className="w-full shrink-0 sm:w-auto"
+      >
+        {pending ? 'שומר…' : ctaLabel}
       </Button>
+
+      {error ? (
+        <p role="alert" className="text-caption text-danger sm:absolute sm:-bottom-5">
+          {error}
+        </p>
+      ) : null}
     </form>
   )
 }

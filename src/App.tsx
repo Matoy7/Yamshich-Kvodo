@@ -1,11 +1,16 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Section } from '@/components/layout/Section'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { HeroBanner } from '@/features/home/HeroBanner'
 import { SentenceGrid } from '@/features/home/SentenceGrid'
+import { CompletionDialog } from '@/features/home/CompletionDialog'
+import { useFeed } from '@/features/home/useFeed'
 import { LoginScreen } from '@/features/auth/LoginScreen'
+import { useSession } from '@/features/auth/useSession'
 import { navItems } from '@/data/navigation'
-import { sentences } from '@/data/sentences'
+import { createCompletion, createSentence, type FeedView, type Sentence } from '@/data/sentences'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 
 const PRODUCT_NAME = 'ימשיך כבודו'
 const TAGLINE = 'שני אנשים. משפט אחד.'
@@ -14,39 +19,100 @@ const COMPOSER_PLACEHOLDER =
   'כאן שמים את תחילת המשפט. לא צריך שלוש נקודות אנחנו נשלים אותם עבורכם. (לדוגמה "בא לי לאכול היום")'
 
 export default function App() {
-  // UI-only gate: no authentication is performed and no credentials are
-  // handled. Set the initial value to `true` to open straight on the dashboard.
-  const [signedIn, setSignedIn] = useState(false)
+  const { session, loading: sessionLoading } = useSession()
+  const [view, setView] = useState<FeedView>('home')
+  const [completing, setCompleting] = useState<Sentence | null>(null)
 
-  if (!signedIn) {
+  const userId = session?.user.id
+  const { sentences, completedIds, loading, error, reload } = useFeed(view, userId)
+
+  const handleCreateSentence = useCallback(
+    async (text: string) => {
+      if (!userId) return
+      await createSentence(text, userId)
+      reload()
+    },
+    [userId, reload],
+  )
+
+  const handleCreateCompletion = useCallback(
+    async (sentenceId: string, text: string) => {
+      if (!userId) return
+      await createCompletion(sentenceId, text, userId)
+      reload()
+    },
+    [userId, reload],
+  )
+
+  if (!isSupabaseConfigured) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg px-4">
+        <div className="w-full max-w-[480px]">
+          <EmptyState
+            title="החיבור ל-Supabase לא מוגדר"
+            description="חסרים המשתנים VITE_SUPABASE_URL ו-VITE_SUPABASE_ANON_KEY. ראו את קובץ README."
+          />
+        </div>
+      </main>
+    )
+  }
+
+  if (sessionLoading) {
+    return <main className="min-h-screen bg-bg" aria-busy="true" aria-label="טוען" />
+  }
+
+  if (!session) {
     return (
       <LoginScreen
         brandName={PRODUCT_NAME}
         brandTagline={TAGLINE}
         privacyNote={PRIVACY_NOTE}
-        onContinue={() => setSignedIn(true)}
       />
     )
   }
 
-  return (
-    <DashboardLayout
-      brandName={PRODUCT_NAME}
-      brandTagline={TAGLINE}
-      navItems={navItems}
-      activeNavId="home"
-      searchPlaceholder="חיפוש"
-      hasNotifications
-    >
-      <HeroBanner
-        label="התחלת משפט חדש"
-        ctaLabel="התחל משפט"
-        composerPlaceholder={COMPOSER_PLACEHOLDER}
-      />
+  const metadata = session.user.user_metadata as { full_name?: string; avatar_url?: string }
+  const userName = metadata.full_name ?? session.user.email ?? 'משתמש'
 
-      <Section>
-        <SentenceGrid sentences={sentences} />
-      </Section>
-    </DashboardLayout>
+  return (
+    <>
+      <DashboardLayout
+        brandName={PRODUCT_NAME}
+        brandTagline={TAGLINE}
+        navItems={navItems}
+        activeNavId={view}
+        searchPlaceholder="חיפוש"
+        userName={userName}
+        avatarUrl={metadata.avatar_url}
+        hasNotifications
+        onSelectNav={(id) => setView(id as FeedView)}
+        onSignOut={() => supabase.auth.signOut()}
+      >
+        <HeroBanner
+          label="התחלת משפט חדש"
+          ctaLabel="התחל משפט"
+          composerPlaceholder={COMPOSER_PLACEHOLDER}
+          onStart={handleCreateSentence}
+        />
+
+        <Section>
+          <SentenceGrid
+            sentences={sentences}
+            completedIds={completedIds}
+            currentUserId={session.user.id}
+            view={view}
+            loading={loading}
+            error={error}
+            onComplete={setCompleting}
+          />
+        </Section>
+      </DashboardLayout>
+
+      <CompletionDialog
+        sentence={completing}
+        onClose={() => setCompleting(null)}
+        onSubmit={handleCreateCompletion}
+      />
+    </>
   )
 }

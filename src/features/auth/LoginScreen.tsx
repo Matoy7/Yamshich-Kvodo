@@ -1,26 +1,42 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { GoogleIcon, FacebookIcon } from './ProviderIcons'
+import { GoogleIcon } from './ProviderIcons'
+import { supabase, authRedirectUrl } from '@/lib/supabase'
 import { assets } from '@/lib/assets'
 
 type LoginScreenProps = {
   brandName: string
   brandTagline: string
   privacyNote: string
-  /** Called with the chosen provider. No credentials are handled here. */
-  onContinue?: (provider: 'google' | 'facebook') => void
 }
 
 /**
  * Authentication screen. Reuses the dashboard's palette, typography, radius
  * and control sizes so it reads as the same product — the illustration is the
  * same asset the dashboard header uses.
+ *
+ * Sign-in is delegated entirely to the provider: this screen never sees or
+ * stores a credential.
  */
-export function LoginScreen({
-  brandName,
-  brandTagline,
-  privacyNote,
-  onContinue,
-}: LoginScreenProps) {
+export function LoginScreen({ brandName, brandTagline, privacyNote }: LoginScreenProps) {
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function signIn() {
+    setPending(true)
+    setError(null)
+
+    const { error: signInError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: authRedirectUrl() },
+    })
+
+    if (signInError) {
+      setError('ההתחברות נכשלה. נסו שוב.')
+      setPending(false)
+    }
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-bg px-4 py-12">
       <div className="flex w-full max-w-[380px] flex-col items-center gap-8 text-center">
@@ -38,27 +54,22 @@ export function LoginScreen({
         </div>
 
         <div className="flex w-full flex-col gap-4">
-          <div className="flex w-full flex-col gap-3">
-            <Button
-              variant="secondary"
-              size="lg"
-              fullWidth
-              iconStart={<GoogleIcon />}
-              onClick={() => onContinue?.('google')}
-            >
-              המשך עם Google
-            </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            disabled={pending}
+            iconStart={<GoogleIcon />}
+            onClick={signIn}
+          >
+            {pending ? 'מתחבר…' : 'המשך עם Google'}
+          </Button>
 
-            <Button
-              variant="secondary"
-              size="lg"
-              fullWidth
-              iconStart={<FacebookIcon />}
-              onClick={() => onContinue?.('facebook')}
-            >
-              המשך עם Facebook
-            </Button>
-          </div>
+          {error ? (
+            <p role="alert" className="text-caption text-danger">
+              {error}
+            </p>
+          ) : null}
 
           <p className="text-caption text-content-muted">{privacyNote}</p>
         </div>

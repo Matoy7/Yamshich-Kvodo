@@ -87,6 +87,48 @@ Note: `.figma/make/site.json` still has `robots.index: false`, which was already
 └── .github/workflows/deploy.yml
 ```
 
+## Backend (Supabase)
+
+Auth and data live in Supabase. The app is still a static site — Supabase runs
+the OAuth exchange and the database, so nothing server-side is deployed here.
+
+### 1. Database
+
+Supabase dashboard → SQL Editor → paste `supabase/schema.sql` → Run. It is
+idempotent, so re-running is safe. It creates `profiles`, `sentences` and
+`completions`, a trigger that creates a profile on signup, and Row Level
+Security policies (everything readable by signed-in users; rows writable only
+by their owner).
+
+### 2. Google sign-in
+
+1. Google Cloud Console → APIs & Services → OAuth consent screen (External).
+2. Credentials → Create credentials → OAuth client ID → Web application.
+3. Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`
+4. Supabase → Authentication → Providers → Google → enable, paste the client ID
+   and secret.
+
+### 3. URLs
+
+Supabase → Authentication → URL Configuration:
+
+- Site URL: `https://matoy7.github.io/Yamshich-Kvodo/`
+- Redirect allow-list: `https://matoy7.github.io/Yamshich-Kvodo/**` and
+  `http://localhost:8443/**`
+
+### 4. Keys
+
+Copy `.env.example` to `.env` for local development and fill in the project URL
+and anon key (Project Settings → API).
+
+For deploys, add the same two names in GitHub → Settings → Secrets and variables
+→ Actions → **Variables** (not Secrets — both values are public by design;
+access is controlled by Row Level Security, not by hiding them). The workflow
+passes them into the build.
+
+Without these variables the app builds fine and renders a setup notice instead
+of the dashboard.
+
 ## Design system
 
 All design decisions live as tokens in `src/index.css` under Tailwind v4's

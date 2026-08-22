@@ -10,14 +10,18 @@ type DashboardLayoutProps = {
   navItems: NavItem[]
   activeNavId: string
   searchPlaceholder: string
+  userName: string
+  avatarUrl?: string
   hasNotifications?: boolean
+  onSelectNav: (id: string) => void
+  onSignOut: () => void
   children: ReactNode
 }
 
 /**
- * Application shell: fixed sidebar (inline-start, RTL-aware) holding search and
- * navigation, a sticky topbar carrying the brand and account controls, and a
- * max-width content column.
+ * Application shell: fixed sidebar (inline-start, RTL-aware) holding search,
+ * navigation and sign-out; a sticky topbar carrying the brand and account
+ * controls; and a max-width content column.
  */
 export function DashboardLayout({
   brandName,
@@ -25,14 +29,25 @@ export function DashboardLayout({
   navItems,
   activeNavId,
   searchPlaceholder,
+  userName,
+  avatarUrl,
   hasNotifications,
+  onSelectNav,
+  onSignOut,
   children,
 }: DashboardLayoutProps) {
   const [navOpen, setNavOpen] = useState(false)
 
   return (
     <div className="min-h-screen bg-bg">
-      <Sidebar items={navItems} activeId={activeNavId} searchPlaceholder={searchPlaceholder} />
+      <Sidebar
+        items={navItems}
+        activeId={activeNavId}
+        searchPlaceholder={searchPlaceholder}
+        userName={userName}
+        onSelect={onSelectNav}
+        onSignOut={onSignOut}
+      />
 
       <MobileNav
         open={navOpen}
@@ -40,12 +55,16 @@ export function DashboardLayout({
         items={navItems}
         activeId={activeNavId}
         searchPlaceholder={searchPlaceholder}
+        userName={userName}
+        onSelect={onSelectNav}
+        onSignOut={onSignOut}
       />
 
       <div className="lg:ms-[264px]">
         <Topbar
           brandName={brandName}
           brandTagline={brandTagline}
+          avatarUrl={avatarUrl}
           hasNotifications={hasNotifications}
           onOpenNav={() => setNavOpen(true)}
         />

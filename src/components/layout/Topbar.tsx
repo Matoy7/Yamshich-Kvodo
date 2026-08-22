@@ -6,6 +6,8 @@ import { assets } from '@/lib/assets'
 type TopbarProps = {
   brandName: string
   brandTagline: string
+  /** Provider avatar for the signed-in user; falls back to the bundled image. */
+  avatarUrl?: string
   hasNotifications?: boolean
   onOpenNav: () => void
 }
@@ -17,6 +19,7 @@ type TopbarProps = {
 export function Topbar({
   brandName,
   brandTagline,
+  avatarUrl,
   hasNotifications = false,
   onOpenNav,
 }: TopbarProps) {
@@ -65,7 +68,7 @@ export function Topbar({
             ) : null}
           </IconButton>
 
-          <Avatar src={assets.profileAvatar} alt="תמונת פרופיל" size="md" />
+          <Avatar src={avatarUrl || assets.profileAvatar} alt="תמונת פרופיל" size="md" />
         </div>
       </div>
     </header>

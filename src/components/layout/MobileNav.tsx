@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { SidebarNav, SidebarSearch, type NavItem } from './Sidebar'
+import { SidebarFooter, SidebarNav, SidebarSearch, type NavItem } from './Sidebar'
 import { cn } from '@/lib/cn'
 
 type MobileNavProps = {
@@ -8,13 +8,25 @@ type MobileNavProps = {
   items: NavItem[]
   activeId: string
   searchPlaceholder: string
+  userName: string
+  onSelect: (id: string) => void
+  onSignOut: () => void
 }
 
 /**
  * Drawer navigation for viewports below `lg`. Mirrors the desktop sidebar's
  * contents rather than introducing a separate mobile information architecture.
  */
-export function MobileNav({ open, onClose, items, activeId, searchPlaceholder }: MobileNavProps) {
+export function MobileNav({
+  open,
+  onClose,
+  items,
+  activeId,
+  searchPlaceholder,
+  userName,
+  onSelect,
+  onSignOut,
+}: MobileNavProps) {
   useEffect(() => {
     if (!open) return
 
@@ -53,7 +65,15 @@ export function MobileNav({ open, onClose, items, activeId, searchPlaceholder }:
         )}
       >
         <SidebarSearch placeholder={searchPlaceholder} />
-        <SidebarNav items={items} activeId={activeId} onSelect={onClose} />
+        <SidebarNav
+          items={items}
+          activeId={activeId}
+          onSelect={(id) => {
+            onSelect(id)
+            onClose()
+          }}
+        />
+        <SidebarFooter userName={userName} onSignOut={onSignOut} />
       </div>
     </div>
   )

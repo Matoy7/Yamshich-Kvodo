@@ -6,7 +6,7 @@ type HeroBannerProps = {
   label: string
   ctaLabel: string
   composerPlaceholder: string
-  onStart?: (value: string) => void
+  onStart: (value: string) => Promise<void>
 }
 
 /** Hero: the sentence composer, and nothing else. */
