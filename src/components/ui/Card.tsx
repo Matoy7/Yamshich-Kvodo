@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react'
+import type { HTMLAttributes, ReactNode, Ref } from 'react'
 import { cn } from '@/lib/cn'
 
 export type CardVariant = 'default' | 'accent'
@@ -19,6 +19,8 @@ type CardProps = HTMLAttributes<HTMLDivElement> & {
   padding?: CardPadding
   interactive?: boolean
   as?: 'div' | 'article' | 'section'
+  /** Forwarded to the rendered element, for measuring or anchoring. */
+  ref?: Ref<HTMLElement>
   children: ReactNode
 }
 
@@ -32,11 +34,13 @@ export function Card({
   interactive = false,
   as: Tag = 'div',
   className,
+  ref,
   children,
   ...rest
 }: CardProps) {
   return (
     <Tag
+      ref={ref as Ref<HTMLDivElement>}
       className={cn(
         'rounded-lg border',
         variantStyles[variant],

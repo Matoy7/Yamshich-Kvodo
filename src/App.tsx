@@ -52,7 +52,7 @@ export default function App() {
   }, [])
 
   const userId = session?.user.id
-  const { sentences, completedIds, loading, error, reload } = useFeed(view, userId)
+  const { sentences, completedIds, authorNames, loading, error, reload } = useFeed(view, userId)
 
   const handleCreateSentence = useCallback(
     async (text: string) => {
@@ -154,6 +154,7 @@ export default function App() {
           <SentenceGrid
             sentences={sentences}
             completedIds={completedIds}
+            authorNames={authorNames}
             currentUserId={session.user.id}
             view={view}
             loading={loading}

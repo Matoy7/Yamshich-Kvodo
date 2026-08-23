@@ -191,3 +191,19 @@ drop policy if exists "a user may delete their own completions" on public.comple
 create policy "a user may delete their own completions"
   on public.completions for delete to authenticated
   using ((select auth.uid()) = author_id);
+
+-- ---------------------------------------------------------------------------
+-- Public author cards
+--
+-- `profiles` stays private — a user still reads only their own row, and email
+-- is never exposed anywhere. This view publishes ONLY what is needed to
+-- attribute a sentence or completion to its author: id, name and picture.
+--
+-- Deliberately not `security_invoker`, so it can read past the base table's
+-- RLS; the narrow column list is what keeps that safe.
+-- ---------------------------------------------------------------------------
+create or replace view public.public_profiles as
+select id, display_name, first_name, avatar_url
+from public.profiles;
+
+grant select on public.public_profiles to authenticated;

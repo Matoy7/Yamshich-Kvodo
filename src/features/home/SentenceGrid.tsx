@@ -6,6 +6,7 @@ import type { FeedView, Sentence } from '@/data/sentences'
 type SentenceGridProps = {
   sentences: Sentence[]
   completedIds: Set<string>
+  authorNames: Map<string, string>
   currentUserId: string
   view: FeedView
   loading: boolean
@@ -34,6 +35,7 @@ const GRID = 'grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3'
 export function SentenceGrid({
   sentences,
   completedIds,
+  authorNames,
   currentUserId,
   view,
   loading,
@@ -69,6 +71,7 @@ export function SentenceGrid({
             sentence={sentence}
             completed={completedIds.has(sentence.id)}
             own={sentence.authorId === currentUserId}
+            authorName={authorNames.get(sentence.authorId) ?? null}
             onComplete={onComplete}
           />
         </li>

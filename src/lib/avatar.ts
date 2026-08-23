@@ -42,6 +42,46 @@ export function cachedAvatar(userId: string): string | undefined {
   return cache.get(userId)
 }
 
+/** Generated avatars for a set of ids, for lists of authors. */
+export function useGeneratedAvatars(userIds: string[]): Record<string, string> {
+  const key = userIds.join(',')
+  const [map, setMap] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const ids = key ? key.split(',') : []
+    if (ids.length === 0) {
+      setMap({})
+      return
+    }
+
+    let active = true
+    loadGenerator()
+      .then((build) => {
+        const next: Record<string, string> = {}
+        for (const id of ids) {
+          let existing = cache.get(id)
+          if (!existing) {
+            let hash = 0
+            for (let index = 0; index < id.length; index += 1) {
+              hash = (hash * 31 + id.charCodeAt(index)) >>> 0
+            }
+            existing = build(id)
+            cache.set(id, existing)
+          }
+          next[id] = existing
+        }
+        if (active) setMap(next)
+      })
+      .catch((error) => console.error('avatar generation failed', error))
+
+    return () => {
+      active = false
+    }
+  }, [key])
+
+  return map
+}
+
 /**
  * Resolves the generated avatar for a user id, or null while the generator is
  * still loading. Pass null to skip generation entirely.
