@@ -176,6 +176,16 @@ await page.hover("article")
 await page.waitForSelector("[data-completions-preview]")
 await page.waitForTimeout(700)
 
+// The first completion is promoted to the hero and the rest are capped until
+// "view all"; expand so every case below is actually rendered.
+const viewAll = page.locator("[data-completions-preview] button", {
+  hasText: "צפה בכל",
+})
+if (await viewAll.count()) {
+  await viewAll.first().click()
+  await page.waitForTimeout(400)
+}
+
 const metrics = await page.evaluate(() => {
   const popup = document.querySelector("[data-completions-preview]")
   const rows = [...popup.querySelectorAll("li")]
@@ -193,9 +203,24 @@ const metrics = await page.evaluate(() => {
     }
   }
 
+  // The promoted completion: the largest paragraph in the popup.
+  const hero = [...popup.querySelectorAll("p")].sort(
+    (a, b) =>
+      parseFloat(getComputedStyle(b).fontSize) -
+      parseFloat(getComputedStyle(a).fontSize),
+  )[0]
+  const heroInk = inkBox(hero)
+  const heroNodes = [hero, ...hero.querySelectorAll("*")]
+
   return {
     popup: popup.getBoundingClientRect().toJSON(),
     popupOverflow: popup.scrollWidth > popup.clientWidth + 1,
+    heroPx: parseFloat(getComputedStyle(hero).fontSize),
+    heroColors: [...new Set(heroNodes.map((n) => getComputedStyle(n).color))],
+    heroWeights: [
+      ...new Set(heroNodes.map((n) => getComputedStyle(n).fontWeight)),
+    ],
+    heroFlushRight: hero.getBoundingClientRect().right - heroInk.right < 1,
     rows: rows.map((li) => {
       const avatar = li.querySelector("img")
       const meta = li.querySelector("div > div")
@@ -207,6 +232,7 @@ const metrics = await page.evaluate(() => {
         metaBox: meta.getBoundingClientRect().toJSON(),
         metaLineHeight: parseFloat(metaStyle.lineHeight),
         textBox: text.getBoundingClientRect().toJSON(),
+        textPx: parseFloat(getComputedStyle(text).fontSize),
         textInk: inkBox(text),
         textAlign: getComputedStyle(text).textAlign,
         textDirection: getComputedStyle(text).direction,
@@ -265,7 +291,7 @@ check(
 const misaligned = metrics.rows
   .map((r, i) => ({
     i,
-    text: CASES[i][1].slice(0, 18),
+    text: CASES[i + 1][1].slice(0, 18),
     gap: round(r.textBox.right - r.textInk.right),
   }))
   .filter((r) => r.gap > 1)
@@ -282,8 +308,8 @@ check(
 )
 
 // The two cases called out by name in the brief.
-const bbb = metrics.rows[2],
-  ddddd = metrics.rows[6]
+const bbb = metrics.rows[1],
+  ddddd = metrics.rows[5]
 check(
   '"bbb" is not on the left',
   round(bbb.textBox.right - bbb.textInk.right) < 1 &&
@@ -304,10 +330,15 @@ check(
   spread(heartRights) < 0.5,
   `${withHeart.length} rows, spread ${spread(heartRights)}px`,
 )
+const heartLefts = withHeart.map((r) => r.heart.left)
 check(
-  "hearts align to the text axis",
-  spread([...heartRights.map((v) => v), ...textRights]) < 1.5,
-  `spread ${spread([...heartRights, ...textRights])}px`,
+  "hearts sit at the inline end, on one axis",
+  spread(heartLefts) < 0.5 && Math.min(...heartLefts) < Math.min(...textLefts),
+  `spread ${spread(heartLefts)}px, left of the text column`,
+)
+check(
+  "hearts align with the top of each row",
+  spread(withHeart.map((r, i) => round(r.heart.top - r.textBox.top))) < 0.5,
 )
 
 // -- metadata is one line ------------------------------------------------------
@@ -318,43 +349,55 @@ check(
 )
 
 // -- rhythm --------------------------------------------------------------------
-const metaToText = metrics.rows.map((r) =>
-  round(r.textBox.top - r.metaBox.bottom),
+const textToMeta = metrics.rows.map((r) =>
+  round(r.metaBox.top - r.textBox.bottom),
 )
-const textToHeart = withHeart.map((r) =>
-  round(r.heart.top + 8 - r.textBox.bottom),
-) // 8px = the button's negative inset
+
+// Rows abut; the visible separation is the padding either side of the rule,
+// measured from one row's last element to the next row's first.
 const rowGaps = metrics.rows
   .slice(1)
-  .map((r, i) => round(r.liBox.top - metrics.rows[i].liBox.bottom))
+  .map((r, i) => round(r.textBox.top - metrics.rows[i].metaBox.bottom))
 check(
-  "8–12px between metadata and text",
-  metaToText.every((v) => v >= 8 && v <= 12),
-  uniq(metaToText).join("/") + "px",
+  "attribution sits directly under its sentence, identically everywhere",
+  uniq(textToMeta).length === 1 && textToMeta.every((v) => v >= 2 && v <= 10),
+  uniq(textToMeta).join("/") + "px",
+)
+
+check(
+  "row separation is identical for every row",
+  uniq(rowGaps).length === 1,
+  uniq(rowGaps).join("/") + "px",
 )
 check(
-  "8–12px between text and action",
-  textToHeart.every((v) => v >= 8 && v <= 12),
-  uniq(textToHeart).join("/") + "px",
-)
-check(
-  "16–20px between rows",
-  rowGaps.every((v) => v >= 16 && v <= 20),
+  "rows are clearly separated (>= 16px)",
+  rowGaps.every((v) => v >= 16),
   uniq(rowGaps).join("/") + "px",
 )
 
 // -- wrapping / overflow --------------------------------------------------------
 check(
   "long completion wraps rather than overflowing",
-  metrics.rows[5].textInk.lines >= 3,
-  `${metrics.rows[5].textInk.lines} lines`,
+  metrics.rows[4].textInk.lines >= 3,
+  `${metrics.rows[4].textInk.lines} lines`,
 )
 check("popup does not scroll horizontally", !metrics.popupOverflow)
 check(
-  "popup width unchanged (380px)",
-  Math.round(metrics.popup.width) === 380,
+  "popup is the wider focused detail view (560px)",
+  Math.round(metrics.popup.width) === 560,
   `${Math.round(metrics.popup.width)}px`,
 )
+check(
+  "the completed sentence dominates the secondary rows",
+  metrics.heroPx >= 32 && metrics.heroPx >= metrics.rows[0].textPx * 1.8,
+  `hero ${metrics.heroPx}px vs rows ${metrics.rows[0].textPx}px`,
+)
+check(
+  "the completed sentence is one colour and one weight",
+  metrics.heroColors.length === 1 && metrics.heroWeights.length === 1,
+  `colours ${metrics.heroColors.join()} weights ${metrics.heroWeights.join()}`,
+)
+check("the completed sentence is flush right", metrics.heroFlushRight)
 
 // -- the dead CTA is gone --------------------------------------------------------
 const cta = await page

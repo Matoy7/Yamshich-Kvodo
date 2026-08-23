@@ -6,8 +6,8 @@ import { useCompletions } from "./useCompletions"
 import { cn } from "@/lib/cn"
 import type { Sentence } from "@/data/sentences"
 
-const WIDTH = 380
-const MAX_HEIGHT = 560
+const WIDTH = 560
+const MAX_HEIGHT = 660
 const MARGIN = 12
 
 type Placement = {
@@ -102,7 +102,7 @@ export function CompletionsPreview({
         left: placement?.left ?? -9999,
       }}
       className={cn(
-        "fixed z-40 flex flex-col rounded-lg border border-border-subtle bg-surface p-4",
+        "fixed z-40 flex flex-col rounded-lg border border-border-subtle bg-surface px-6 py-5",
         "shadow-overlay transition-[opacity,transform] duration-150 ease-out",
         placement
           ? "opacity-100 translate-y-0 scale-100"

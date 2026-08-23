@@ -24,6 +24,7 @@ export const assets = {
   iconChat: `${base}/a099a.svg`,
   iconHeart: `${base}/heart-outline.svg`,
   iconHeartFilled: `${base}/heart-filled.svg`,
+  iconChevronStart: `${base}/chevron-start.svg`,
 } as const
 
 export type AssetKey = keyof typeof assets

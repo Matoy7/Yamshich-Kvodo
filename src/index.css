@@ -66,6 +66,10 @@
   --text-page-title--line-height: 32px;
   --text-display: 34px;
   --text-display--line-height: 36px;
+  /* The completed sentence in the completions popup. Same size as --display,
+     but with the leading a multi-line sentence needs. */
+  --text-hero-quote: 34px;
+  --text-hero-quote--line-height: 44px;
   --text-quote: 24px;
   --text-quote--line-height: 33px;
 

@@ -62,6 +62,18 @@ export function LikeButton({
         "disabled:pointer-events-none disabled:opacity-45",
       )}
     >
+      {/* Count first in the DOM so that, in RTL, it renders to the right of
+          the heart — the heart sitting at the far inline end, as in the
+          reference. A zero reads as a verdict on the completion, so it stays
+          unwritten until someone has actually liked it; the slot keeps its
+          width so the row does not shift when the first like arrives. */}
+      <span
+        className="min-w-2 text-start tabular-nums"
+        aria-hidden={count === 0}
+      >
+        {count > 0 ? count : ""}
+      </span>
+
       <span
         className={cn(
           "relative inline-flex size-4 shrink-0 items-center justify-center",
@@ -84,16 +96,6 @@ export function LikeButton({
             liked ? "scale-100 opacity-100" : "scale-50 opacity-0",
           )}
         />
-      </span>
-
-      {/* A zero reads as a verdict on the completion, so it stays unwritten
-          until someone has actually liked it. The slot keeps its width so the
-          row does not shift when the first like arrives. */}
-      <span
-        className="min-w-2 text-start tabular-nums"
-        aria-hidden={count === 0}
-      >
-        {count > 0 ? count : ""}
       </span>
     </button>
   )
