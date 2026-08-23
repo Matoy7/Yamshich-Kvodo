@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from "react"
 import {
   fetchSentences,
   fetchCompletedIds,
   type FeedView,
   type Sentence,
-} from '@/data/sentences'
-import { fetchAuthors } from '@/data/completions'
+} from "@/data/sentences"
+import { fetchAuthors } from "@/data/completions"
 
 type FeedState = {
   sentences: Sentence[]
@@ -46,7 +46,7 @@ export function useFeed(view: FeedView, userId: string | undefined): FeedState {
         void loadAuthorNames(rows.map((row) => row.authorId))
       })
       .catch(() => {
-        if (active) setError('לא הצלחנו לטעון את המשפטים.')
+        if (active) setError("לא הצלחנו לטעון את המשפטים.")
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -60,7 +60,7 @@ export function useFeed(view: FeedView, userId: string | undefined): FeedState {
           new Map(
             [...authors.entries()].map(([id, row]) => [
               id,
-              row.display_name?.trim() || row.first_name?.trim() || 'משתמש',
+              row.display_name?.trim() || row.first_name?.trim() || "משתמש",
             ]),
           ),
         )

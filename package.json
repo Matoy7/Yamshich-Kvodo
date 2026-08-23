@@ -7,7 +7,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build && node scripts/verify-assets.mjs && node scripts/verify-social-card.mjs",
     "preview": "vite preview",
-    "format": "oxfmt"
+    "format": "oxfmt src scripts && tsc --noEmit",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@dicebear/collection": "^9.4.2",
