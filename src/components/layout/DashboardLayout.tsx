@@ -12,8 +12,10 @@ type DashboardLayoutProps = {
   searchPlaceholder: string
   userName: string
   avatarUrl?: string
+  canUpgrade?: boolean
   hasNotifications?: boolean
   onSelectNav: (id: string) => void
+  onUpgrade?: () => void
   onSignOut: () => void
   children: ReactNode
 }
@@ -31,8 +33,10 @@ export function DashboardLayout({
   searchPlaceholder,
   userName,
   avatarUrl,
+  canUpgrade,
   hasNotifications,
   onSelectNav,
+  onUpgrade,
   onSignOut,
   children,
 }: DashboardLayoutProps) {
@@ -45,7 +49,9 @@ export function DashboardLayout({
         activeId={activeNavId}
         searchPlaceholder={searchPlaceholder}
         userName={userName}
+        canUpgrade={canUpgrade}
         onSelect={onSelectNav}
+        onUpgrade={onUpgrade}
         onSignOut={onSignOut}
       />
 
@@ -56,7 +62,9 @@ export function DashboardLayout({
         activeId={activeNavId}
         searchPlaceholder={searchPlaceholder}
         userName={userName}
+        canUpgrade={canUpgrade}
         onSelect={onSelectNav}
+        onUpgrade={onUpgrade}
         onSignOut={onSignOut}
       />
 

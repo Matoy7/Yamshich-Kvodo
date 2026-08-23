@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Section } from '@/components/layout/Section'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -8,7 +8,10 @@ import { CompletionDialog } from '@/features/home/CompletionDialog'
 import { useFeed } from '@/features/home/useFeed'
 import { LoginScreen } from '@/features/auth/LoginScreen'
 import { useSession } from '@/features/auth/useSession'
-import { avatarUrlFor, displayNameFor } from '@/features/auth/profile'
+import { avatarUrlFor, canUpgradeAccount, displayNameFor } from '@/features/auth/profile'
+import { beginAccountLink, consumeAccountLinkOutcome, type LinkResult } from '@/features/auth/linkAccount'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 import { navItems } from '@/data/navigation'
 import { createCompletion, createSentence, type FeedView, type Sentence } from '@/data/sentences'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
@@ -24,6 +27,22 @@ export default function App() {
   const { session, loading: sessionLoading, displayName } = useSession()
   const [view, setView] = useState<FeedView>('home')
   const [completing, setCompleting] = useState<Sentence | null>(null)
+  const [linkResult, setLinkResult] = useState<LinkResult | null>(null)
+
+  // Reports the result of an account-link redirect, once per return trip.
+  // A cancelled attempt is silent: the guest session is left exactly as it was.
+  useEffect(() => {
+    consumeAccountLinkOutcome()
+      .then((result) => {
+        if (result && result.outcome !== 'cancelled') setLinkResult(result)
+      })
+      .catch(() => {})
+  }, [])
+
+  const startAccountLink = useCallback(async () => {
+    const failure = await beginAccountLink()
+    if (failure) setLinkResult({ outcome: 'failed', detail: failure })
+  }, [])
 
   const userId = session?.user.id
   const { sentences, completedIds, loading, error, reload } = useFeed(view, userId)
@@ -105,8 +124,10 @@ export default function App() {
         searchPlaceholder="חיפוש"
         userName={userName}
         avatarUrl={avatarUrl}
+        canUpgrade={canUpgradeAccount(session.user)}
         hasNotifications
         onSelectNav={(id) => setView(id as FeedView)}
+        onUpgrade={startAccountLink}
         onSignOut={() => supabase.auth.signOut()}
       >
         <HeroBanner
@@ -134,6 +155,30 @@ export default function App() {
         onClose={() => setCompleting(null)}
         onSubmit={handleCreateCompletion}
       />
+
+      <Modal
+        open={linkResult !== null}
+        onClose={() => setLinkResult(null)}
+        title={linkResult?.outcome === 'linked' ? 'החשבון נשמר 🎉' : 'שמירת החשבון לא הושלמה'}
+        footer={
+          <Button variant="primary" size="md" onClick={() => setLinkResult(null)}>
+            סגירה
+          </Button>
+        }
+      >
+        <p className="text-body text-content-secondary">
+          {linkResult?.outcome === 'linked'
+            ? 'המשפטים וההשלמות שלך איתך גם בפעם הבאה.'
+            : linkResult?.outcome === 'conflict'
+              ? 'חשבון Google הזה כבר משויך למשתמש אחר. התחברו איתו ישירות, או נסו חשבון Google אחר. המשפטים שלכם כאן לא נפגעו.'
+              : 'לא הצלחנו לשמור את החשבון, ונשארתם מחוברים כאורח. שום דבר לא אבד — אפשר לנסות שוב.'}
+        </p>
+        {linkResult?.detail && linkResult.outcome !== 'linked' ? (
+          <p dir="ltr" className="text-caption text-content-muted">
+            {linkResult.detail}
+          </p>
+        ) : null}
+      </Modal>
     </>
   )
 }

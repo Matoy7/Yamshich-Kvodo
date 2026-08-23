@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { generateGuestName } from './guestName'
+import { hasGoogleIdentity } from './linkAccount'
 
 export type Profile = {
   id: string
@@ -32,6 +33,17 @@ const NAME_ATTEMPTS = 8
  */
 export function isGuest(user: User): boolean {
   return user.is_anonymous === true
+}
+
+/**
+ * Whether to offer the "save my account" upgrade.
+ *
+ * Keyed on the presence of a Google identity rather than on `is_anonymous`
+ * alone, so the offer disappears the moment linking succeeds regardless of how
+ * the flag itself settles.
+ */
+export function canUpgradeAccount(user: User): boolean {
+  return isGuest(user) && !hasGoogleIdentity(user)
 }
 
 /** Google puts the user's details on `user_metadata` under these keys. */
@@ -100,8 +112,25 @@ export async function upsertProfile(user: User): Promise<string> {
   const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' })
   if (error) throw error
 
+  // A name already on the row wins — a guest who upgrades to Google keeps the
+  // name they have been using rather than being silently renamed.
+  const stored = await readDisplayName(user.id)
+  if (stored) return stored
+
   if (!guest) return displayNameFor(user)
   return ensureGuestDisplayName(user.id)
+}
+
+/** The display name stored on this user's own row, if any. */
+async function readDisplayName(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (error) throw error
+  return (data as { display_name: string | null } | null)?.display_name ?? null
 }
 
 /**
@@ -114,14 +143,7 @@ export async function upsertProfile(user: User): Promise<string> {
  * back as a unique violation and we simply try another combination.
  */
 export async function ensureGuestDisplayName(userId: string): Promise<string> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('display_name')
-    .eq('id', userId)
-    .maybeSingle()
-
-  if (error) throw error
-  const existing = (data as { display_name: string | null } | null)?.display_name
+  const existing = await readDisplayName(userId)
   if (existing) return existing
 
   for (let attempt = 0; attempt < NAME_ATTEMPTS; attempt += 1) {

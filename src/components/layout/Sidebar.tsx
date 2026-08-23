@@ -9,11 +9,36 @@ export type NavItem = {
   icon: string
 }
 
-/** Sign-out control pinned to the bottom of the sidebar. */
-export function SidebarFooter({ userName, onSignOut }: { userName: string; onSignOut: () => void }) {
+type SidebarFooterProps = {
+  userName: string
+  /** Guests only: offers to attach a Google account to this same user. */
+  canUpgrade?: boolean
+  onUpgrade?: () => void
+  onSignOut: () => void
+}
+
+/** Account block pinned to the bottom of the sidebar. */
+export function SidebarFooter({
+  userName,
+  canUpgrade = false,
+  onUpgrade,
+  onSignOut,
+}: SidebarFooterProps) {
   return (
     <div className="mt-auto flex flex-col gap-2 border-t border-border pt-4">
       <p className="truncate px-3 text-label text-content-muted">{userName}</p>
+
+      {canUpgrade ? (
+        <div className="flex flex-col gap-1 pb-1">
+          <Button variant="secondary" size="md" fullWidth onClick={onUpgrade}>
+            שמור את החשבון
+          </Button>
+          <p className="px-3 text-caption text-content-muted">
+            שמור את המשפטים וההשלמות שלך
+          </p>
+        </div>
+      ) : null}
+
       <Button variant="ghost" size="md" fullWidth onClick={onSignOut} className="justify-start px-3">
         התנתקות
       </Button>
@@ -83,7 +108,9 @@ type SidebarProps = {
   activeId: string
   searchPlaceholder: string
   userName: string
+  canUpgrade?: boolean
   onSelect: (id: string) => void
+  onUpgrade?: () => void
   onSignOut: () => void
 }
 
@@ -93,7 +120,9 @@ export function Sidebar({
   activeId,
   searchPlaceholder,
   userName,
+  canUpgrade,
   onSelect,
+  onUpgrade,
   onSignOut,
 }: SidebarProps) {
   return (
@@ -105,7 +134,12 @@ export function Sidebar({
     >
       <SidebarSearch placeholder={searchPlaceholder} />
       <SidebarNav items={items} activeId={activeId} onSelect={onSelect} />
-      <SidebarFooter userName={userName} onSignOut={onSignOut} />
+      <SidebarFooter
+        userName={userName}
+        canUpgrade={canUpgrade}
+        onUpgrade={onUpgrade}
+        onSignOut={onSignOut}
+      />
     </aside>
   )
 }

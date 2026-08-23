@@ -9,7 +9,9 @@ type MobileNavProps = {
   activeId: string
   searchPlaceholder: string
   userName: string
+  canUpgrade?: boolean
   onSelect: (id: string) => void
+  onUpgrade?: () => void
   onSignOut: () => void
 }
 
@@ -24,7 +26,9 @@ export function MobileNav({
   activeId,
   searchPlaceholder,
   userName,
+  canUpgrade,
   onSelect,
+  onUpgrade,
   onSignOut,
 }: MobileNavProps) {
   useEffect(() => {
@@ -73,7 +77,12 @@ export function MobileNav({
             onClose()
           }}
         />
-        <SidebarFooter userName={userName} onSignOut={onSignOut} />
+        <SidebarFooter
+          userName={userName}
+          canUpgrade={canUpgrade}
+          onUpgrade={onUpgrade}
+          onSignOut={onSignOut}
+        />
       </div>
     </div>
   )
