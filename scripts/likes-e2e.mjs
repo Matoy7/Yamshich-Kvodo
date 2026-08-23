@@ -127,6 +127,7 @@ async function session(page, opts = {}) {
         state.writes.push({ op: "insert", ...row })
         if (state.failNext > 0) {
           state.failNext -= 1
+          await new Promise((r) => setTimeout(r, 250))
           return json({ message: "boom" }, 500)
         }
         // The real unique (completion_id, user_id) constraint.
@@ -162,6 +163,7 @@ async function session(page, opts = {}) {
         state.writes.push({ op: "delete", completion_id: cid, user_id: uid })
         if (state.failNext > 0) {
           state.failNext -= 1
+          await new Promise((r) => setTimeout(r, 250))
           return json({ message: "boom" }, 500)
         }
         state.likes = state.likes.filter(
