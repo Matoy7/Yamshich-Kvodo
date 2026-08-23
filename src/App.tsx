@@ -166,7 +166,14 @@ export default function App() {
           onStart={handleCreateSentence}
         />
 
-        <Section>
+        {/* Labelled only on the ranked feed — "what's happening now" would be
+            a lie above a personal, chronological list. */}
+        <Section
+          title={view === "home" ? "מה קורה עכשיו?" : undefined}
+          description={
+            view === "home" ? "המשפטים שאנשים משלימים ממש עכשיו" : undefined
+          }
+        >
           <SentenceGrid
             sentences={sentences}
             completedIds={completedIds}

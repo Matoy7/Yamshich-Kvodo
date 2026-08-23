@@ -90,6 +90,21 @@ await page.route("**/*supabase.co/**", (route) => {
     })
 
   if (url.pathname.includes("/auth/v1/")) return json({})
+  if (url.pathname.endsWith("/rpc/feed_ranked"))
+    return json([
+      {
+        id: "s1",
+        text: "aaa",
+        author_id: AUTHORS.a,
+        created_at: new Date(Date.now() - 864e5).toISOString(),
+        completion_count: CASES.length,
+        like_count: 0,
+        participant_count: 3,
+        is_trending: false,
+        is_rising: false,
+        is_new: false,
+      },
+    ])
   if (url.pathname.endsWith("/sentences"))
     return json([
       {
@@ -370,6 +385,21 @@ await page.close()
         body: JSON.stringify(b),
       })
     if (url.pathname.includes("/auth/v1/")) return json({})
+    if (url.pathname.endsWith("/rpc/feed_ranked"))
+      return json([
+        {
+          id: "s1",
+          text: "aaa",
+          author_id: AUTHORS.a,
+          created_at: new Date(Date.now() - 864e5).toISOString(),
+          completion_count: CASES.length,
+          like_count: 0,
+          participant_count: 3,
+          is_trending: false,
+          is_rising: false,
+          is_new: false,
+        },
+      ])
     if (url.pathname.endsWith("/sentences"))
       return json([
         {

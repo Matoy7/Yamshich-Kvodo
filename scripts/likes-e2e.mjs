@@ -71,6 +71,24 @@ async function session(page, opts = {}) {
 
     if (url.pathname.includes("/auth/v1/")) return json({})
 
+    // The home feed is ranked in Postgres now; the browser calls this instead
+    // of selecting from `sentences`.
+    if (url.pathname.endsWith("/rpc/feed_ranked"))
+      return json([
+        {
+          id: SENTENCE,
+          text: "בא לי לאכול היום",
+          author_id: OTHER,
+          created_at: new Date(Date.now() - 3600e3).toISOString(),
+          completion_count: 2,
+          like_count: 0,
+          participant_count: 1,
+          is_trending: false,
+          is_rising: false,
+          is_new: false,
+        },
+      ])
+
     if (url.pathname.endsWith("/sentences"))
       return json([
         {

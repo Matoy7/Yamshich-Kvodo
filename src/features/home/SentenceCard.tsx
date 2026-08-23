@@ -126,7 +126,18 @@ export function SentenceCard({
           setSheetOpen(true)
         }}
       >
-        <Icon src={assets.iconQuote} size="lg" className="opacity-70" />
+        {/* The quote mark keeps its place; the indicator sits opposite it and
+            is absent on the overwhelming majority of cards. Thresholds live in
+            the database (see supabase/2026-08-trending.sql) so "hot" means the
+            same thing everywhere. */}
+        <div className="flex items-start justify-between gap-3">
+          <Icon src={assets.iconQuote} size="lg" className="opacity-70" />
+          {sentence.isTrending ? (
+            <Badge variant="accent">🔥 חם עכשיו</Badge>
+          ) : sentence.isRising ? (
+            <Badge variant="neutral">↑ עולה עכשיו</Badge>
+          ) : null}
+        </div>
 
         <p
           dir="auto"
