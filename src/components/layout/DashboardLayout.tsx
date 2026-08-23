@@ -11,7 +11,7 @@ type DashboardLayoutProps = {
   activeNavId: string
   searchPlaceholder: string
   userName: string
-  avatarUrl?: string
+  avatarUrl: string
   canUpgrade?: boolean
   hasNotifications?: boolean
   onSelectNav: (id: string) => void
@@ -73,6 +73,10 @@ export function DashboardLayout({
           brandName={brandName}
           brandTagline={brandTagline}
           avatarUrl={avatarUrl}
+          displayName={userName}
+          isGuest={Boolean(canUpgrade)}
+          onLinkGoogle={() => onUpgrade?.()}
+          onSignOut={onSignOut}
           hasNotifications={hasNotifications}
           onOpenNav={() => setNavOpen(true)}
         />

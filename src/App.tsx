@@ -8,7 +8,8 @@ import { CompletionDialog } from '@/features/home/CompletionDialog'
 import { useFeed } from '@/features/home/useFeed'
 import { LoginScreen } from '@/features/auth/LoginScreen'
 import { useSession } from '@/features/auth/useSession'
-import { avatarUrlFor, canUpgradeAccount, displayNameFor } from '@/features/auth/profile'
+import { canUpgradeAccount, displayNameFor, providerAvatarUrl } from '@/features/auth/profile'
+import { useGeneratedAvatar } from '@/lib/avatar'
 import { beginAccountLink, consumeAccountLinkOutcome, type LinkResult } from '@/features/auth/linkAccount'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
@@ -28,6 +29,12 @@ export default function App() {
   const [view, setView] = useState<FeedView>('home')
   const [completing, setCompleting] = useState<Sentence | null>(null)
   const [linkResult, setLinkResult] = useState<LinkResult | null>(null)
+  const [confirmGuestSignOut, setConfirmGuestSignOut] = useState(false)
+
+  // Provider picture when there is one; otherwise the deterministic generated
+  // avatar, loaded lazily so it never weighs down the first paint.
+  const providerAvatar = session ? providerAvatarUrl(session.user) : null
+  const generatedAvatar = useGeneratedAvatar(session && !providerAvatar ? session.user.id : null)
 
   // Reports the result of an account-link redirect, once per return trip.
   // A cancelled attempt is silent: the guest session is left exactly as it was.
@@ -112,7 +119,7 @@ export default function App() {
   // Guests show their generated name once the profile sync resolves; until
   // then the neutral placeholder. Never blank or undefined.
   const userName = displayName ?? displayNameFor(session.user)
-  const avatarUrl = avatarUrlFor(session.user)
+  const avatarUrl = providerAvatar ?? generatedAvatar ?? assets.heroIllustration
 
   return (
     <>
@@ -128,7 +135,13 @@ export default function App() {
         hasNotifications
         onSelectNav={(id) => setView(id as FeedView)}
         onUpgrade={startAccountLink}
-        onSignOut={() => supabase.auth.signOut()}
+        onSignOut={() => {
+          // A guest's identity lives only in this browser's session. Signing
+          // out discards it, and with it the way back to their sentences —
+          // unless they linked Google first. Ask before that happens.
+          if (canUpgradeAccount(session.user)) setConfirmGuestSignOut(true)
+          else void supabase.auth.signOut()
+        }}
       >
         <HeroBanner
           label="התחלת משפט חדש"
@@ -155,6 +168,37 @@ export default function App() {
         onClose={() => setCompleting(null)}
         onSubmit={handleCreateCompletion}
       />
+
+      <Modal
+        open={confirmGuestSignOut}
+        onClose={() => setConfirmGuestSignOut(false)}
+        title="לצאת מחשבון האורח?"
+        footer={
+          <>
+            <Button variant="ghost" size="md" onClick={() => setConfirmGuestSignOut(false)}>
+              ביטול
+            </Button>
+            <Button
+              variant="destructive"
+              size="md"
+              onClick={() => {
+                setConfirmGuestSignOut(false)
+                void supabase.auth.signOut()
+              }}
+            >
+              צא בכל זאת
+            </Button>
+          </>
+        }
+      >
+        <p className="text-body text-content-secondary">
+          חשבון האורח קיים רק בדפדפן הזה. אם תצאו, לא נוכל לשחזר אותו — והמשפטים
+          וההשלמות שלכם לא יהיו נגישים יותר.
+        </p>
+        <p className="text-body-sm text-content-muted">
+          כדי לשמור אותם, סגרו את החלון ובחרו "כניסה עם Google" בתפריט החשבון.
+        </p>
+      </Modal>
 
       <Modal
         open={linkResult !== null}

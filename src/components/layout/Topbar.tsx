@@ -1,15 +1,19 @@
-import { Avatar } from '@/components/ui/Avatar'
 import { Icon } from '@/components/ui/Icon'
 import { IconButton } from '@/components/ui/IconButton'
+import { AccountMenu } from '@/features/auth/AccountMenu'
 import { assets } from '@/lib/assets'
 
 type TopbarProps = {
   brandName: string
   brandTagline: string
-  /** Provider avatar for the signed-in user; falls back to the bundled image. */
-  avatarUrl?: string
+  /** Provider avatar, or the deterministic generated one. */
+  avatarUrl: string
+  displayName: string
+  isGuest: boolean
   hasNotifications?: boolean
   onOpenNav: () => void
+  onLinkGoogle: () => void
+  onSignOut: () => void
 }
 
 /**
@@ -20,8 +24,12 @@ export function Topbar({
   brandName,
   brandTagline,
   avatarUrl,
+  displayName,
+  isGuest,
   hasNotifications = false,
   onOpenNav,
+  onLinkGoogle,
+  onSignOut,
 }: TopbarProps) {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-bg/85 backdrop-blur-sm">
@@ -68,7 +76,13 @@ export function Topbar({
             ) : null}
           </IconButton>
 
-          <Avatar src={avatarUrl || assets.profileAvatar} alt="תמונת פרופיל" size="md" />
+          <AccountMenu
+            displayName={displayName}
+            avatarUrl={avatarUrl}
+            isGuest={isGuest}
+            onLinkGoogle={onLinkGoogle}
+            onSignOut={onSignOut}
+          />
         </div>
       </div>
     </header>

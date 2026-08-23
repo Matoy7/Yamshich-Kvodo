@@ -77,12 +77,7 @@ export function MobileNav({
             onClose()
           }}
         />
-        <SidebarFooter
-          userName={userName}
-          canUpgrade={canUpgrade}
-          onUpgrade={onUpgrade}
-          onSignOut={onSignOut}
-        />
+        <SidebarFooter userName={userName} onSignOut={onSignOut} />
       </div>
     </div>
   )

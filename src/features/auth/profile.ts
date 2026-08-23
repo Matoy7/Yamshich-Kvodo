@@ -32,7 +32,9 @@ const NAME_ATTEMPTS = 8
  * exactly as they do to Google users. The only difference is this flag.
  */
 export function isGuest(user: User): boolean {
-  return user.is_anonymous === true
+  // A linked user is no longer a guest even if the anonymous flag lingers:
+  // the presence of a Google identity is the authoritative signal.
+  return user.is_anonymous === true && !hasGoogleIdentity(user)
 }
 
 /**
@@ -43,7 +45,7 @@ export function isGuest(user: User): boolean {
  * the flag itself settles.
  */
 export function canUpgradeAccount(user: User): boolean {
-  return isGuest(user) && !hasGoogleIdentity(user)
+  return isGuest(user)
 }
 
 /** Google puts the user's details on `user_metadata` under these keys. */
@@ -76,11 +78,17 @@ export function displayNameFor(user: User): string {
   return name || 'משתמש'
 }
 
-/** Provider avatar, or undefined so the UI falls back to the bundled image. */
-export function avatarUrlFor(user: User): string | undefined {
-  if (isGuest(user)) return undefined
+/**
+ * The provider's picture, when the account is linked and has one. Null means
+ * the UI should fall back to the deterministic generated avatar.
+ */
+export function providerAvatarUrl(user: User): string | null {
+  if (isGuest(user)) return null
   const metadata = (user.user_metadata ?? {}) as GoogleMetadata
-  return metadata.avatar_url ?? metadata.picture ?? undefined
+  // A blank string is "no picture", not a picture — otherwise the <img>
+  // renders empty instead of falling back to the generated avatar.
+  const url = (metadata.avatar_url ?? metadata.picture ?? '').trim()
+  return url || null
 }
 
 /**
@@ -112,13 +120,24 @@ export async function upsertProfile(user: User): Promise<string> {
   const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' })
   if (error) throw error
 
-  // A name already on the row wins — a guest who upgrades to Google keeps the
-  // name they have been using rather than being silently renamed.
-  const stored = await readDisplayName(user.id)
-  if (stored) return stored
+  if (!guest) {
+    // Linked users are known by their provider name. Releasing the generated
+    // name also returns it to the pool for other guests.
+    const stored = await readDisplayName(user.id)
+    if (stored) await releaseDisplayName(user.id)
+    return displayNameFor(user)
+  }
 
-  if (!guest) return displayNameFor(user)
   return ensureGuestDisplayName(user.id)
+}
+
+/** Clears a generated name once the account is no longer a guest. */
+async function releaseDisplayName(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ display_name: null })
+    .eq('id', userId)
+  if (error) throw error
 }
 
 /**
