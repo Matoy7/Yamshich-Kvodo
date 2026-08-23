@@ -121,6 +121,22 @@ export async function upsertProfile(user: User): Promise<string> {
   return ensureGuestDisplayName(user.id)
 }
 
+/**
+ * Turns the "column does not exist" failure into something actionable.
+ * Without this the app silently falls back to the placeholder name and the
+ * only clue is a generic PostgREST error.
+ */
+function assertMigrated(error: { message?: string; code?: string } | null): void {
+  if (!error) return
+  const message = error.message ?? ''
+  if (/display_name/.test(message) && /column|schema cache/i.test(message)) {
+    throw new Error(
+      'profiles.display_name is missing — run supabase/2026-08-add-display-name.sql ' +
+        `in the Supabase SQL editor. (${message})`,
+    )
+  }
+}
+
 /** The display name stored on this user's own row, if any. */
 async function readDisplayName(userId: string): Promise<string | null> {
   const { data, error } = await supabase
@@ -129,6 +145,7 @@ async function readDisplayName(userId: string): Promise<string | null> {
     .eq('id', userId)
     .maybeSingle()
 
+  assertMigrated(error)
   if (error) throw error
   return (data as { display_name: string | null } | null)?.display_name ?? null
 }
@@ -154,6 +171,7 @@ export async function ensureGuestDisplayName(userId: string): Promise<string> {
       .eq('id', userId)
 
     if (!writeError) return candidate
+    assertMigrated(writeError)
     if (writeError.code !== UNIQUE_VIOLATION) throw writeError
     // Name taken — loop and pick another combination.
   }
