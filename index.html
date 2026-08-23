@@ -7,6 +7,37 @@
     <title><!-- figma:title --></title>
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#0f3040" />
+
+    <!-- ===================================================================
+         Link previews (WhatsApp, iMessage, Slack, Facebook, X, LinkedIn).
+
+         Every URL below MUST be absolute. Crawlers fetch these with no
+         document base, so a relative path — which is what the rest of this
+         build emits on purpose, for sub-path hosting — silently yields no
+         thumbnail at all. That is why the origin is spelled out here.
+
+         og:title and og:description are injected from .figma/make/site.json
+         and are deliberately not repeated in this file.
+         =================================================================== -->
+    <link rel="canonical" href="https://matoy7.github.io/Yamshich-Kvodo/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://matoy7.github.io/Yamshich-Kvodo/" />
+    <meta property="og:site_name" content="ימשיך כבודו" />
+    <meta property="og:locale" content="he_IL" />
+
+    <!-- 1200×630 JPEG, ~74 KB. WhatsApp renders the large card only while the
+         image stays well under ~300 KB; above that it falls back to a small
+         icon or none. Regenerate with: node scripts/og-image.mjs -->
+    <meta property="og:image" content="https://matoy7.github.io/Yamshich-Kvodo/og-image.jpg" />
+    <meta property="og:image:secure_url" content="https://matoy7.github.io/Yamshich-Kvodo/og-image.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ימשיך כבודו — שני אנשים. משפט אחד." />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://matoy7.github.io/Yamshich-Kvodo/og-image.jpg" />
     <!-- figma:head-end -->
   </head>
   <body>

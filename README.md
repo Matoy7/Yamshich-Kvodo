@@ -152,3 +152,38 @@ utilities (`bg-surface`, `text-content-muted`, `rounded-lg`, `shadow-card`).
 
 Do not hardcode colours, radii, shadows or control heights in components;
 add or adjust a token instead.
+
+## Link previews (WhatsApp, iMessage, Slack, X)
+
+Pasting the site URL into a chat shows a card: the image
+`public/og-image.jpg` (1200×630) plus the title and description from
+`.figma/make/site.json`.
+
+The Open Graph tags live in the head of `index.html`. **Their URLs are
+absolute on purpose.** Everything else in this build uses relative paths so the
+site works from a GitHub Pages sub-path, but a crawler fetches `og:image`
+with no document base, so a relative path there produces no thumbnail at all.
+If the site ever moves, update the origin in `index.html`.
+
+`npm run build` runs `scripts/verify-social-card.mjs`, which fails the build if
+the tags go missing, a URL stops being absolute, the image is absent or grows
+past WhatsApp's ~300 KB ceiling, or `noindex` / a blocking `robots.txt` comes
+back.
+
+To change the card's artwork or wording, edit and re-run the generator:
+
+```
+npm i --no-save playwright @fontsource/rubik @fontsource/alef
+node scripts/og-image.mjs
+```
+
+It writes `public/og-image.jpg`, which is committed to the repository — a
+normal build never needs Playwright.
+
+### If the preview does not update
+
+WhatsApp caches a URL's preview for roughly a week, per URL, and re-checks
+nothing in between. After deploying a change, test with a URL it has not seen:
+append `?v=2` (`https://matoy7.github.io/Yamshich-Kvodo/?v=2`). Facebook's
+[Sharing Debugger](https://developers.facebook.com/tools/debug/) shows exactly
+what the crawlers read and can force a re-scrape.

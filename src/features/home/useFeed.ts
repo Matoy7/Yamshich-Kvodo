@@ -36,13 +36,25 @@ export function useFeed(view: FeedView, userId: string | undefined): FeedState {
     setError(null)
 
     Promise.all([fetchSentences(view, userId), fetchCompletedIds(userId)])
-      .then(async ([rows, completed]) => {
+      .then(([rows, completed]) => {
         if (!active) return
         setSentences(rows)
         setCompletedIds(completed)
 
-        // One extra query for the whole page, not one per card.
-        const authors = await fetchAuthors(rows.map((row) => row.authorId))
+        // Attribution is decorative and runs on its own: one extra query for
+        // the whole page, never one per card, and never able to fail the feed.
+        void loadAuthorNames(rows.map((row) => row.authorId))
+      })
+      .catch(() => {
+        if (active) setError('לא הצלחנו לטעון את המשפטים.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    async function loadAuthorNames(ids: string[]) {
+      try {
+        const authors = await fetchAuthors(ids)
         if (!active) return
         setAuthorNames(
           new Map(
@@ -52,13 +64,10 @@ export function useFeed(view: FeedView, userId: string | undefined): FeedState {
             ]),
           ),
         )
-      })
-      .catch(() => {
-        if (active) setError('לא הצלחנו לטעון את המשפטים.')
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
+      } catch {
+        if (active) setAuthorNames(new Map())
+      }
+    }
 
     return () => {
       active = false

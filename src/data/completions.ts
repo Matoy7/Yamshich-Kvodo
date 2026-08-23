@@ -26,9 +26,16 @@ function authorName(row: AuthorRow | undefined): string {
   return row?.display_name?.trim() || row?.first_name?.trim() || 'משתמש'
 }
 
+let authorsWarned = false
+
 /**
  * Author cards come from `public_profiles`, a view exposing only id, name and
  * picture. The `profiles` table itself stays private — no email is readable.
+ *
+ * Attribution is decorative: every caller falls back to a neutral name. So a
+ * failure here — most plausibly the view not existing yet — resolves to an
+ * empty map rather than rejecting, and never takes down the feed or the
+ * completions list that asked for it.
  */
 export async function fetchAuthors(ids: string[]): Promise<Map<string, AuthorRow>> {
   const unique = [...new Set(ids)].filter(Boolean)
@@ -39,7 +46,18 @@ export async function fetchAuthors(ids: string[]): Promise<Map<string, AuthorRow
     .select('id, display_name, first_name, avatar_url')
     .in('id', unique)
 
-  if (error) throw error
+  if (error) {
+    if (!authorsWarned) {
+      authorsWarned = true
+      console.warn(
+        'Author names unavailable; showing the neutral fallback. ' +
+          'If public.public_profiles is missing, run supabase/2026-08-public-profiles.sql.',
+        error,
+      )
+    }
+    return new Map()
+  }
+
   return new Map(((data ?? []) as AuthorRow[]).map((row) => [row.id, row]))
 }
 
