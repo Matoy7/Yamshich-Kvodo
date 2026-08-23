@@ -8,6 +8,7 @@ import { CompletionDialog } from '@/features/home/CompletionDialog'
 import { useFeed } from '@/features/home/useFeed'
 import { LoginScreen } from '@/features/auth/LoginScreen'
 import { useSession } from '@/features/auth/useSession'
+import { avatarUrlFor, displayNameFor } from '@/features/auth/profile'
 import { navItems } from '@/data/navigation'
 import { createCompletion, createSentence, type FeedView, type Sentence } from '@/data/sentences'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
@@ -89,8 +90,9 @@ export default function App() {
     )
   }
 
-  const metadata = session.user.user_metadata as { full_name?: string; avatar_url?: string }
-  const userName = metadata.full_name ?? session.user.email ?? 'משתמש'
+  // Guests render as "אורח" with the bundled avatar; never blank or undefined.
+  const userName = displayNameFor(session.user)
+  const avatarUrl = avatarUrlFor(session.user)
 
   return (
     <>
@@ -101,7 +103,7 @@ export default function App() {
         activeNavId={view}
         searchPlaceholder="חיפוש"
         userName={userName}
-        avatarUrl={metadata.avatar_url}
+        avatarUrl={avatarUrl}
         hasNotifications
         onSelectNav={(id) => setView(id as FeedView)}
         onSignOut={() => supabase.auth.signOut()}

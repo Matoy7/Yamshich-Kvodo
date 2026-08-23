@@ -20,7 +20,7 @@ type LoginScreenProps = {
  * stores a credential.
  */
 export function LoginScreen({ brandName, brandTagline, privacyNote }: LoginScreenProps) {
-  const [pending, setPending] = useState(false)
+  const [pending, setPending] = useState<null | 'google' | 'guest'>(null)
   const [error, setError] = useState<string | null>(null)
   const [details, setDetails] = useState<string | null>(null)
 
@@ -35,7 +35,7 @@ export function LoginScreen({ brandName, brandTagline, privacyNote }: LoginScree
   }, [])
 
   async function signIn() {
-    setPending(true)
+    setPending('google')
     setError(null)
     setDetails(null)
 
@@ -46,7 +46,34 @@ export function LoginScreen({ brandName, brandTagline, privacyNote }: LoginScree
 
     if (signInError) {
       setError('ההתחברות נכשלה. נסו שוב.')
-      setPending(false)
+      setPending(null)
+    }
+  }
+
+  /**
+   * Guest access. Creates a real Supabase user with the `authenticated` role,
+   * so `auth.uid()` and every existing RLS policy apply unchanged — there is
+   * no redirect and no form.
+   *
+   * Only reachable when there is no session at all, so an existing guest
+   * session is never replaced by a new anonymous user.
+   */
+  async function signInAsGuest() {
+    setPending('guest')
+    setError(null)
+    setDetails(null)
+
+    const { error: guestError } = await supabase.auth.signInAnonymously()
+
+    if (guestError) {
+      const disabled = /anonymous.*disabled|signups? not allowed/i.test(guestError.message)
+      setError(
+        disabled
+          ? 'כניסת אורחים אינה מופעלת בפרויקט. יש להפעיל Anonymous Sign-Ins בהגדרות Supabase.'
+          : 'הכניסה כאורח נכשלה. נסו שוב.',
+      )
+      setDetails(guestError.message)
+      setPending(null)
     }
   }
 
@@ -71,11 +98,30 @@ export function LoginScreen({ brandName, brandTagline, privacyNote }: LoginScree
             variant="secondary"
             size="lg"
             fullWidth
-            disabled={pending}
+            disabled={pending !== null}
             iconStart={<GoogleIcon />}
             onClick={signIn}
           >
-            {pending ? 'מתחבר…' : 'המשך עם Google'}
+            {pending === 'google' ? 'מתחבר…' : 'המשך עם Google'}
+          </Button>
+
+          {/* Secondary, deliberately subordinate: ghost variant at the smaller
+              `md` control height, so it reads as a text action rather than a
+              second call to action. */}
+          <div className="flex items-center gap-3" aria-hidden>
+            <span className="h-px flex-1 bg-content-muted/25" />
+            <span className="text-caption text-content-muted">או</span>
+            <span className="h-px flex-1 bg-content-muted/25" />
+          </div>
+
+          <Button
+            variant="ghost"
+            size="md"
+            fullWidth
+            disabled={pending !== null}
+            onClick={signInAsGuest}
+          >
+            {pending === 'guest' ? 'נכנס…' : 'המשך כאורח'}
           </Button>
 
           {error ? (
