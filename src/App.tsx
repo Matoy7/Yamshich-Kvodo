@@ -21,7 +21,7 @@ const COMPOSER_PLACEHOLDER =
   'כאן שמים את תחילת המשפט. לא צריך שלוש נקודות אנחנו נשלים אותם עבורכם. (לדוגמה "בא לי לאכול היום")'
 
 export default function App() {
-  const { session, loading: sessionLoading } = useSession()
+  const { session, loading: sessionLoading, displayName } = useSession()
   const [view, setView] = useState<FeedView>('home')
   const [completing, setCompleting] = useState<Sentence | null>(null)
 
@@ -90,8 +90,9 @@ export default function App() {
     )
   }
 
-  // Guests render as "אורח" with the bundled avatar; never blank or undefined.
-  const userName = displayNameFor(session.user)
+  // Guests show their generated name once the profile sync resolves; until
+  // then the neutral placeholder. Never blank or undefined.
+  const userName = displayName ?? displayNameFor(session.user)
   const avatarUrl = avatarUrlFor(session.user)
 
   return (

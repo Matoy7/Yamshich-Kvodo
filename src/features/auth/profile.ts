@@ -1,18 +1,27 @@
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { generateGuestName } from './guestName'
 
 export type Profile = {
   id: string
   email: string | null
   first_name: string | null
   last_name: string | null
+  /** Generated guest name; NULL for provider users. */
+  display_name: string | null
   avatar_url: string | null
   created_at: string
   updated_at: string
 }
 
-/** Shown wherever a guest would otherwise have no name. */
+/** Used only until a generated name has been assigned. */
 export const GUEST_DISPLAY_NAME = 'אורח'
+
+/** Postgres unique-violation, raised when a generated name is already taken. */
+const UNIQUE_VIOLATION = '23505'
+
+/** Plenty: the name space is ~362,500 combinations. */
+const NAME_ATTEMPTS = 8
 
 /**
  * True for a Supabase anonymous user.
@@ -73,19 +82,13 @@ export function avatarUrlFor(user: User): string | undefined {
  * Guests get a row too — the feed's foreign keys require one — but with no
  * email and no provider fields.
  */
-export async function upsertProfile(user: User): Promise<void> {
+export async function upsertProfile(user: User): Promise<string> {
   const guest = isGuest(user)
   const metadata = (user.user_metadata ?? {}) as GoogleMetadata
   const fallback = splitName(metadata.full_name ?? metadata.name ?? '')
 
   const row = guest
-    ? {
-        id: user.id,
-        email: null,
-        first_name: GUEST_DISPLAY_NAME,
-        last_name: null,
-        avatar_url: null,
-      }
+    ? { id: user.id, email: null, first_name: null, last_name: null, avatar_url: null }
     : {
         id: user.id,
         email: user.email ?? null,
@@ -96,4 +99,42 @@ export async function upsertProfile(user: User): Promise<void> {
 
   const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' })
   if (error) throw error
+
+  if (!guest) return displayNameFor(user)
+  return ensureGuestDisplayName(user.id)
+}
+
+/**
+ * Resolves a guest's display name, generating one only the first time.
+ *
+ * A returning guest keeps the name already stored on their row, so the same
+ * guest identity always shows the same name. Uniqueness is enforced by a
+ * unique index rather than by looking for clashes first — profiles are private,
+ * so the client cannot see whether another user holds a name. A clash comes
+ * back as a unique violation and we simply try another combination.
+ */
+export async function ensureGuestDisplayName(userId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (error) throw error
+  const existing = (data as { display_name: string | null } | null)?.display_name
+  if (existing) return existing
+
+  for (let attempt = 0; attempt < NAME_ATTEMPTS; attempt += 1) {
+    const candidate = generateGuestName()
+    const { error: writeError } = await supabase
+      .from('profiles')
+      .update({ display_name: candidate })
+      .eq('id', userId)
+
+    if (!writeError) return candidate
+    if (writeError.code !== UNIQUE_VIOLATION) throw writeError
+    // Name taken — loop and pick another combination.
+  }
+
+  throw new Error('could not allocate a unique guest name')
 }

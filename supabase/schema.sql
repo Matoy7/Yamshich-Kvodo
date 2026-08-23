@@ -29,8 +29,17 @@ alter table public.profiles add column if not exists last_name  text;
 alter table public.profiles add column if not exists avatar_url text;
 alter table public.profiles add column if not exists updated_at timestamptz not null default now();
 
--- Superseded by first_name / last_name.
-alter table public.profiles drop column if exists display_name;
+-- Guest display name, e.g. "שועל סקרן כחול עם מטרייה". NULL for provider
+-- users, whose name comes from first_name / last_name.
+alter table public.profiles add column if not exists display_name text;
+
+-- Uniqueness is enforced here rather than by the client, because profiles are
+-- private: a user cannot read anyone else's row to check first. A clash simply
+-- fails the update and the client retries with another combination.
+-- Partial, so the many NULLs for provider users do not collide.
+create unique index if not exists profiles_display_name_unique
+  on public.profiles (lower(display_name))
+  where display_name is not null;
 
 -- ---------------------------------------------------------------------------
 -- sentences + completions

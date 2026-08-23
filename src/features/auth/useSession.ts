@@ -7,6 +7,12 @@ type SessionState = {
   session: Session | null
   /** True until the stored session has been read — render nothing decisive yet. */
   loading: boolean
+  /**
+   * Resolved from the profile row: a guest's generated name, or the provider
+   * name. Null until the profile sync completes; callers fall back to
+   * `displayNameFor(session.user)` meanwhile.
+   */
+  displayName: string | null
 }
 
 /**
@@ -17,6 +23,7 @@ type SessionState = {
 export function useSession(): SessionState {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [displayName, setDisplayName] = useState<string | null>(null)
   const syncedUserId = useRef<string | null>(null)
 
   useEffect(() => {
@@ -38,11 +45,15 @@ export function useSession(): SessionState {
       const user = next?.user
       if (!user || syncedUserId.current === user.id) return
       syncedUserId.current = user.id
-      upsertProfile(user).catch((error) => {
-        // Non-fatal: the signup trigger has already created the row.
-        console.error('profile upsert failed', error)
-        syncedUserId.current = null
-      })
+      upsertProfile(user)
+        .then((name) => {
+          if (active) setDisplayName(name)
+        })
+        .catch((error) => {
+          // Non-fatal: the signup trigger has already created the row.
+          console.error('profile upsert failed', error)
+          syncedUserId.current = null
+        })
     }
 
     supabase.auth
@@ -65,6 +76,7 @@ export function useSession(): SessionState {
 
       if (event === 'SIGNED_OUT') {
         syncedUserId.current = null
+        setDisplayName(null)
         return
       }
       syncProfile(next)
@@ -77,5 +89,5 @@ export function useSession(): SessionState {
     }
   }, [])
 
-  return { session, loading }
+  return { session, loading, displayName }
 }
