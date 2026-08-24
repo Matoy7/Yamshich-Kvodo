@@ -447,13 +447,23 @@ Deno.serve(async (req) => {
     const data = await fetchSharedData(sentenceId, completionId)
     if (!data) return Response.redirect(canonicalUrl, 302)
 
-    // Built from this same request's own path rather than a hardcoded
-    // "/functions/v1/share" prefix, so it's correct whatever this function
-    // ends up deployed/named as.
-    const functionBase = url.pathname.slice(
-      0,
-      url.pathname.indexOf("/sentence/"),
-    )
+    // This function is only ever publicly reachable at
+    // /functions/v1/share — Supabase's fixed, documented gateway path for
+    // every Edge Function, never configurable per function. The previous
+    // version derived this prefix from url.pathname instead of hardcoding
+    // it, on the assumption that url.pathname reflects the external path a
+    // client used. It doesn't: Supabase's gateway strips the
+    // /functions/v1/share prefix before invoking this function, so
+    // url.pathname here was already showing the *internal*, rewritten path
+    // (e.g. /share/sentence/...) — one level shorter than the real public
+    // URL. Reusing it to build another URL produced a link with no
+    // /functions/v1/ at all (https://.../share/og-image/...), which is not
+    // a route Supabase's gateway recognises — confirmed directly: that URL
+    // 404s. WhatsApp's crawler parsed the HTML fine (a separate fetch, to a
+    // correctly-routed URL) and had nothing wrong to show for og:title, but
+    // fetching the 404ing og:image found nothing to render, so it silently
+    // dropped the image and kept the rest of the preview.
+    const functionBase = "/functions/v1/share"
     // Forced to https explicitly rather than using url.origin/url.protocol:
     // Supabase's edge runtime reports the *internal* request scheme to the
     // function, which comes through as http even though the function is
