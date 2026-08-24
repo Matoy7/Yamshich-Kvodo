@@ -120,15 +120,15 @@ export function SentenceCard({
             >
               {leadingCompletion.text}
             </p>
-            <div className="mt-1 flex items-center gap-1.5 text-caption text-content-muted">
-              <Icon src={assets.iconCrown} size="xs" />
-              <span className="min-w-0 truncate">
+            <div className="mt-1 flex items-center gap-1.5 text-body-sm">
+              <Icon src={assets.iconCrown} size="sm" />
+              <span className="min-w-0 truncate font-semibold text-content-primary">
                 <bdi>{leadingCompletion.authorName}</bdi>
               </span>
-              <span aria-hidden className="shrink-0">
+              <span aria-hidden className="shrink-0 text-content-muted">
                 •
               </span>
-              <span className="shrink-0">
+              <span className="shrink-0 text-caption text-content-muted">
                 {relativeTime(leadingCompletion.createdAt)}
               </span>
             </div>
