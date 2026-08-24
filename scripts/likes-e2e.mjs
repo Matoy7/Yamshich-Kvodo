@@ -228,12 +228,12 @@ const SHEET = '[role="dialog"][aria-modal="true"][aria-label^="השלמות עב
 
 const like = (page) =>
   page
-    .locator('[aria-label="אהבתי את ההשלמה"], [aria-label="הסר לייק"]')
+    .locator('[aria-label="אהבתי את ההשלמה"], [aria-label="הסר לייק מההשלמה"]')
     .first()
 const readLike = async (page) => {
   const el = like(page)
   return {
-    liked: (await el.getAttribute("aria-label")) === "הסר לייק",
+    liked: (await el.getAttribute("aria-label")) === "הסר לייק מההשלמה",
     count: ((await el.textContent()) || "").trim(),
   }
 }
@@ -322,7 +322,7 @@ const browser = await chromium.launch({
   const burstBefore = state.writes.length
   await page.evaluate(() => {
     const button = document.querySelector(
-      '[aria-label="אהבתי את ההשלמה"], [aria-label="הסר לייק"]',
+      '[aria-label="אהבתי את ההשלמה"], [aria-label="הסר לייק מההשלמה"]',
     )
     for (let i = 0; i < 8; i += 1) button.click()
   })
@@ -474,12 +474,12 @@ const browser = await chromium.launch({
   check("14c. operable by keyboard", k.liked, JSON.stringify(k))
   check(
     "14d. label switches to the un-like wording",
-    (await el.getAttribute("aria-label")) === "הסר לייק",
+    (await el.getAttribute("aria-label")) === "הסר לייק מההשלמה",
   )
 
   // Zero-count rendering, on the completion nobody has liked.
   const second = page
-    .locator('[aria-label="אהבתי את ההשלמה"], [aria-label="הסר לייק"]')
+    .locator('[aria-label="אהבתי את ההשלמה"], [aria-label="הסר לייק מההשלמה"]')
     .nth(1)
   check(
     "16. a zero count renders no number",

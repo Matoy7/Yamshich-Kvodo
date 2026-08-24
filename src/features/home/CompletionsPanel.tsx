@@ -1,8 +1,8 @@
 import { useState } from "react"
 import { Icon } from "@/components/ui/Icon"
+import { IconButton } from "@/components/ui/IconButton"
 import { Button } from "@/components/ui/Button"
 import { CompletionRow } from "./CompletionRow"
-import { LikeButton } from "./LikeButton"
 import { useGeneratedAvatars } from "@/lib/avatar"
 import { relativeTime } from "@/lib/time"
 import { assets } from "@/lib/assets"
@@ -20,8 +20,7 @@ type PanelProps = {
   likeError?: string | null
   /** Omitted when there is no signed-in user to attribute a like to. */
   onToggleLike?: (completionId: string) => void
-  /** Rendered as the sheet's dismiss control; omitted on the desktop popover. */
-  footerExtra?: React.ReactNode
+  onClose: () => void
 }
 
 /** How many of the remaining completions are shown before "view all". */
@@ -65,15 +64,26 @@ function Skeleton() {
   )
 }
 
+/** Matches Modal's close glyph, so every dismiss control in the app looks the same. */
+function CloseGlyph() {
+  return (
+    <span aria-hidden className="relative block size-4">
+      <span className="absolute inset-x-0 top-1/2 block h-0.5 rotate-45 rounded-full bg-content-secondary" />
+      <span className="absolute inset-x-0 top-1/2 block h-0.5 -rotate-45 rounded-full bg-content-secondary" />
+    </span>
+  )
+}
+
 /**
  * Shared content for both presentations: the desktop popover and the mobile
  * sheet render exactly the same thing.
  *
- * The shape is deliberately not a comment thread. One completion is promoted
- * and shown spliced onto the opener as a single continuous sentence in one
- * colour and one weight, so the first thing read is the finished thought
- * rather than a list of replies. The rest follow underneath as clearly
- * subordinate entries.
+ * The shape is deliberately not a comment thread: "איך השלימו אותו?" frames
+ * every completion below it — including the leading one — as one of several
+ * answers to the same sentence, all in the same row shape and the same
+ * typography. The leading completion is distinguished only by a small crown
+ * and a touch more weight, never by a different size, a card of its own, or
+ * a "winner" label.
  */
 export function CompletionsPanel({
   sentence,
@@ -84,7 +94,7 @@ export function CompletionsPanel({
   onRetry,
   likeError,
   onToggleLike,
-  footerExtra,
+  onClose,
 }: PanelProps) {
   const [expanded, setExpanded] = useState(false)
 
@@ -101,34 +111,47 @@ export function CompletionsPanel({
   const count = completions?.length ?? sentence.completionsCount
 
   // The list arrives ranked likes DESC, created_at DESC (see
-  // data/completions.ts → rankCompletions); the leading ending is promoted.
-  const [main, ...rest] = completions ?? []
+  // data/completions.ts → rankCompletions); the leading completion is
+  // therefore always first.
+  const [leading, ...rest] = completions ?? []
   const visibleRest = expanded ? rest : rest.slice(0, SECONDARY_LIMIT)
   const hiddenCount = rest.length - visibleRest.length
 
   return (
     <div className="flex max-h-full min-h-0 flex-col">
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex shrink-0 flex-col gap-1.5 border-b border-border-subtle pb-4">
-        <p className="text-start text-section-title font-semibold text-content-primary">
-          <bdi>{sentence.text}</bdi>...
-        </p>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body-sm text-content-muted">
-          {authorName ? (
-            <span>
-              נכתב על ידי <bdi>{authorName}</bdi>
-            </span>
-          ) : null}
-          <span aria-hidden>•</span>
-          <span>{relativeTime(sentence.createdAt)}</span>
+      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border-subtle pb-4">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <p className="text-start text-section-title font-semibold text-content-primary">
+            <bdi>{sentence.text}</bdi>...
+          </p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body-sm text-content-muted">
+            {authorName ? (
+              <span>
+                נכתב על ידי <bdi>{authorName}</bdi>
+              </span>
+            ) : null}
+            <span aria-hidden>•</span>
+            <span>{relativeTime(sentence.createdAt)}</span>
+          </div>
+          <span className="mt-0.5 inline-flex items-center gap-1.5 text-body-sm text-content-muted">
+            <Icon src={assets.iconPerson} size="xs" />
+            {count} השלמות
+          </span>
         </div>
-        <span className="mt-0.5 inline-flex items-center gap-1.5 text-body-sm text-content-muted">
-          <Icon src={assets.iconPerson} size="xs" />
-          {count} השלמות
-        </span>
+
+        <IconButton
+          label="סגירה"
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          className="-me-1 -mt-1 shrink-0"
+        >
+          <CloseGlyph />
+        </IconButton>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {loading && !completions ? (
           <div className="py-5">
             <Skeleton />
@@ -142,7 +165,7 @@ export function CompletionsPanel({
               נסה שוב
             </Button>
           </div>
-        ) : !main ? (
+        ) : !leading ? (
           <div className="flex flex-col gap-1 py-6">
             <p className="text-card-title font-medium text-content-primary">
               עדיין אין השלמות
@@ -153,100 +176,58 @@ export function CompletionsPanel({
           </div>
         ) : (
           <>
-            {/* ── The completed sentence ───────────────────────────────── */}
-            <div className="py-5 sm:py-6">
-              {/* One colour, one weight, one sentence. Nothing here marks
-                  where the opener stops and the ending begins — that seam is
-                  exactly what would turn this back into a reply. */}
-              <p className="text-start text-quote font-semibold text-content-primary sm:text-hero-quote [overflow-wrap:anywhere]">
-                <bdi>{joinSentence(sentence.text, main.text)}</bdi>
-              </p>
+            {/* "How did they complete it?" — not "comments", not "replies":
+                every row beneath this is a different answer to the sentence
+                above, the leading one included. */}
+            <p className="pb-2 pt-4 text-start text-label font-medium text-content-muted">
+              איך השלימו אותו?
+            </p>
 
-              <div className="mt-5 flex items-center justify-between gap-4">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <img
-                    src={avatarFor(main)}
-                    alt=""
-                    aria-hidden
-                    width={32}
-                    height={32}
-                    className="size-8 shrink-0 rounded-full bg-surface-secondary object-cover"
-                  />
-                  <div className="flex min-w-0 items-center gap-1.5 text-body-sm">
-                    <span className="truncate font-medium text-content-secondary">
-                      <bdi>{main.author.name}</bdi>
-                    </span>
-                    <span aria-hidden className="shrink-0 text-content-muted">
-                      •
-                    </span>
-                    <span className="shrink-0 text-content-muted">
-                      {relativeTime(main.createdAt)}
-                    </span>
-                  </div>
-                </div>
-
-                {main.likes && onToggleLike ? (
-                  <div className="flex shrink-0 items-center gap-2">
-                    {likeError === main.id ? (
-                      <span role="status" className="text-caption text-danger">
-                        לא נשמר
-                      </span>
-                    ) : null}
-                    <LikeButton
-                      liked={main.likes.likedByMe}
-                      count={main.likes.count}
-                      onToggle={() => onToggleLike(main.id)}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            {/* ── The other ways people finished it ────────────────────── */}
-            {/* No section heading: the reference runs straight from the
-                promoted sentence into the alternatives, separated only by
-                hairlines. A heading here would reintroduce the "main post,
-                then replies" reading the redesign is meant to remove. */}
-            {rest.length > 0 ? (
-              <ul className="flex flex-col">
-                {visibleRest.map((completion) => (
-                  <CompletionRow
-                    key={completion.id}
-                    completion={completion}
-                    fullText={joinSentence(sentence.text, completion.text)}
-                    avatar={avatarFor(completion)}
-                    failed={likeError === completion.id}
-                    onToggleLike={onToggleLike}
-                    className="border-t border-border-subtle py-5"
-                  />
-                ))}
-              </ul>
-            ) : null}
+            <ul className="divide-y divide-border-subtle">
+              <CompletionRow
+                key={leading.id}
+                completion={leading}
+                fullText={joinSentence(sentence.text, leading.text)}
+                avatar={avatarFor(leading)}
+                failed={likeError === leading.id}
+                onToggleLike={onToggleLike}
+                leading
+                className="py-4"
+              />
+              {visibleRest.map((completion) => (
+                <CompletionRow
+                  key={completion.id}
+                  completion={completion}
+                  fullText={joinSentence(sentence.text, completion.text)}
+                  avatar={avatarFor(completion)}
+                  failed={likeError === completion.id}
+                  onToggleLike={onToggleLike}
+                  className="py-4"
+                />
+              ))}
+            </ul>
           </>
         )}
       </div>
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
-      {hiddenCount > 0 || footerExtra ? (
-        <div className="flex shrink-0 flex-col gap-2 border-t border-border-subtle pt-3">
-          {hiddenCount > 0 ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                setExpanded(true)
-              }}
-              className="-mx-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md px-2 text-body-sm font-medium text-accent transition-colors duration-150 hover:bg-surface-muted"
-            >
-              צפה בכל {count} ההשלמות
-              <Icon
-                src={assets.iconChevronStart}
-                size="sm"
-                className="opacity-70"
-              />
-            </button>
-          ) : null}
-          {footerExtra}
+      {hiddenCount > 0 ? (
+        <div className="shrink-0 border-t border-border-subtle pt-3">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              setExpanded(true)
+            }}
+            className="-mx-2 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md px-2 text-body-sm font-medium text-accent transition-colors duration-150 hover:bg-surface-muted"
+          >
+            הצג את כל ההשלמות
+            <Icon
+              src={assets.iconChevronStart}
+              size="sm"
+              className="opacity-70"
+            />
+          </button>
         </div>
       ) : null}
     </div>

@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Button } from "@/components/ui/Button"
 import { CompletionsPanel } from "./CompletionsPanel"
 import { useCompletions } from "./useCompletions"
 import { cn } from "@/lib/cn"
@@ -144,6 +143,7 @@ export function CompletionsPreview({
         onRetry={retry}
         likeError={likeError}
         onToggleLike={currentUserId ? toggleLike : undefined}
+        onClose={onClose}
       />
     </div>,
     document.body,
@@ -225,11 +225,7 @@ export function CompletionsSheet({
           onRetry={retry}
           likeError={likeError}
           onToggleLike={currentUserId ? toggleLike : undefined}
-          footerExtra={
-            <Button variant="secondary" size="md" fullWidth onClick={onClose}>
-              סגור
-            </Button>
-          }
+          onClose={onClose}
         />
       </div>
     </div>,

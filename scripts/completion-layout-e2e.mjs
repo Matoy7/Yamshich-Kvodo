@@ -181,7 +181,7 @@ await page.waitForTimeout(700)
 // The first completion is promoted to the hero and the rest are capped until
 // "view all"; expand so every case below is actually rendered.
 const viewAll = page.locator("[data-completions-preview] button", {
-  hasText: "צפה בכל",
+  hasText: "הצג את כל ההשלמות",
 })
 if (await viewAll.count()) {
   await viewAll.first().click()
@@ -205,28 +205,19 @@ const metrics = await page.evaluate(() => {
     }
   }
 
-  // The promoted completion: the largest paragraph in the popup.
-  const hero = [...popup.querySelectorAll("p")].sort(
-    (a, b) =>
-      parseFloat(getComputedStyle(b).fontSize) -
-      parseFloat(getComputedStyle(a).fontSize),
-  )[0]
-  const heroInk = inkBox(hero)
-  const heroNodes = [hero, ...hero.querySelectorAll("*")]
-
   return {
     popup: popup.getBoundingClientRect().toJSON(),
     popupOverflow: popup.scrollWidth > popup.clientWidth + 1,
-    heroPx: parseFloat(getComputedStyle(hero).fontSize),
-    heroColors: [...new Set(heroNodes.map((n) => getComputedStyle(n).color))],
-    heroWeights: [
-      ...new Set(heroNodes.map((n) => getComputedStyle(n).fontWeight)),
-    ],
-    heroFlushRight: hero.getBoundingClientRect().right - heroInk.right < 1,
+    heading: [...popup.querySelectorAll("p")].some(
+      (p) => p.textContent.trim() === "איך השלימו אותו?",
+    ),
     rows: rows.map((li) => {
       const avatar = li.querySelector("img")
       const meta = li.querySelector("div > div")
       const text = li.querySelector("p")
+      const bdi = text.querySelector("bdi")
+      const bdiNodes = [bdi, ...bdi.querySelectorAll("*")]
+      const crown = text.querySelector("img")
       const heart = li.querySelector("button")
       const metaStyle = getComputedStyle(meta)
       return {
@@ -235,9 +226,12 @@ const metrics = await page.evaluate(() => {
         metaLineHeight: parseFloat(metaStyle.lineHeight),
         textBox: text.getBoundingClientRect().toJSON(),
         textPx: parseFloat(getComputedStyle(text).fontSize),
+        textWeight: getComputedStyle(text).fontWeight,
         textInk: inkBox(text),
         textAlign: getComputedStyle(text).textAlign,
         textDirection: getComputedStyle(text).direction,
+        bdiColors: [...new Set(bdiNodes.map((n) => getComputedStyle(n).color))],
+        hasCrown: Boolean(crown),
         heart: heart ? heart.getBoundingClientRect().toJSON() : null,
         heartIcon: heart
           ? heart.querySelector("span").getBoundingClientRect().toJSON()
@@ -293,7 +287,6 @@ check(
 const misaligned = metrics.rows
   .map((r, i) => ({
     i,
-    text: CASES[i + 1][1].slice(0, 18),
     gap: round(r.textBox.right - r.textInk.right),
   }))
   .filter((r) => r.gap > 1)
@@ -309,9 +302,11 @@ check(
   uniq(metrics.rows.map((r) => (r.textDirection === "rtl" ? 1 : 0))).join(),
 )
 
-// The two cases called out by name in the brief.
-const bbb = metrics.rows[1],
-  ddddd = metrics.rows[5]
+// The two cases called out by name in the brief. Row 0 is now the leading
+// completion (unified list, not a separate hero) — every index below it
+// shifts by one compared to the old hero+rest split.
+const bbb = metrics.rows[2],
+  ddddd = metrics.rows[6]
 check(
   '"bbb" is not on the left',
   round(bbb.textBox.right - bbb.textInk.right) < 1 &&
@@ -380,8 +375,8 @@ check(
 // -- wrapping / overflow --------------------------------------------------------
 check(
   "long completion wraps rather than overflowing",
-  metrics.rows[4].textInk.lines >= 3,
-  `${metrics.rows[4].textInk.lines} lines`,
+  metrics.rows[5].textInk.lines >= 3,
+  `${metrics.rows[5].textInk.lines} lines`,
 )
 check("popup does not scroll horizontally", !metrics.popupOverflow)
 check(
@@ -390,16 +385,29 @@ check(
   `${Math.round(metrics.popup.width)}px`,
 )
 check(
-  "the completed sentence dominates the secondary rows",
-  metrics.heroPx >= 32 && metrics.heroPx >= metrics.rows[0].textPx * 1.8,
-  `hero ${metrics.heroPx}px vs rows ${metrics.rows[0].textPx}px`,
+  "leading completion has the same text size as the others (not a hero)",
+  metrics.rows[0].textPx === metrics.rows[1].textPx,
+  `leading ${metrics.rows[0].textPx}px vs others ${metrics.rows[1].textPx}px`,
 )
 check(
-  "the completed sentence is one colour and one weight",
-  metrics.heroColors.length === 1 && metrics.heroWeights.length === 1,
-  `colours ${metrics.heroColors.join()} weights ${metrics.heroWeights.join()}`,
+  "leading completion is only slightly heavier in weight, not a different size",
+  Number(metrics.rows[0].textWeight) > Number(metrics.rows[1].textWeight),
+  `leading ${metrics.rows[0].textWeight} vs others ${metrics.rows[1].textWeight}`,
 )
-check("the completed sentence is flush right", metrics.heroFlushRight)
+check(
+  "leading completion has the crown, others do not",
+  metrics.rows[0].hasCrown && metrics.rows.slice(1).every((r) => !r.hasCrown),
+  `crowned rows: ${metrics.rows.map((r) => r.hasCrown).join(",")}`,
+)
+check(
+  "the completed sentence is one colour throughout",
+  metrics.rows.every((r) => r.bdiColors.length === 1),
+)
+check(
+  "the completed sentence is flush right",
+  metrics.rows.every((r) => round(r.textBox.right - r.textInk.right) < 1),
+)
+check('"איך השלימו אותו?" section heading is present', metrics.heading)
 
 // -- the dead CTA is gone --------------------------------------------------------
 const cta = await page

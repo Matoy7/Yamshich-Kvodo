@@ -1,4 +1,6 @@
 import { LikeButton } from "./LikeButton"
+import { Icon } from "@/components/ui/Icon"
+import { assets } from "@/lib/assets"
 import { cn } from "@/lib/cn"
 import { relativeTime } from "@/lib/time"
 import type { Completion } from "@/data/completions"
@@ -13,15 +15,23 @@ type CompletionRowProps = {
   /** True when this row's last like write failed. */
   failed: boolean
   onToggleLike?: (completionId: string) => void
+  /** The completion currently ahead by likes (ties → newest). Gets a small
+   *  crown and slightly stronger weight — never a different size, a banner,
+   *  or a "winner" label. */
+  leading?: boolean
 }
 
 /**
- * One of the other ways people finished the sentence.
+ * One of the ways people finished the sentence — the leading one and every
+ * other one share this exact row, so the list never reads as "the answer,
+ * then some replies".
  *
  * Three fixed tracks — avatar, content, like — so nothing moves horizontally
  * because a completion is short, long, Hebrew or English. The content track is
  * `minmax(0, 1fr)`, which lets it shrink below its intrinsic width so an
  * unbroken string wraps instead of widening the row and shifting the avatar.
+ * The like control sits in its own track at the row's inline end, so it
+ * always visually belongs to the row it sits in rather than floating free.
  *
  * The finished sentence leads and the attribution sits under it: these are
  * different endings to one sentence, not replies to a post.
@@ -38,6 +48,7 @@ export function CompletionRow({
   className,
   failed,
   onToggleLike,
+  leading = false,
 }: CompletionRowProps) {
   return (
     <li
@@ -56,7 +67,20 @@ export function CompletionRow({
       />
 
       <div className="min-w-0">
-        <p className="text-start text-card-title font-medium text-content-primary [overflow-wrap:anywhere]">
+        <p
+          className={cn(
+            "flex items-start gap-1.5 text-start text-card-title text-content-primary [overflow-wrap:anywhere]",
+            leading ? "font-semibold" : "font-medium",
+          )}
+        >
+          {leading ? (
+            <Icon
+              src={assets.iconCrown}
+              size="xs"
+              className="mt-1 shrink-0"
+              label="ההשלמה המובילה כרגע"
+            />
+          ) : null}
           <bdi>{fullText}</bdi>
         </p>
 
