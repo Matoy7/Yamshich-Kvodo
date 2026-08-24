@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge"
 import { Icon } from "@/components/ui/Icon"
 import { CompletionsPreview, CompletionsSheet } from "./CompletionsPreview"
 import { assets } from "@/lib/assets"
+import { relativeTime } from "@/lib/time"
 import type { Sentence } from "@/data/sentences"
 import type { LeadingCompletion } from "@/data/completions"
 
@@ -106,16 +107,32 @@ export function SentenceCard({
           {sentence.text}...
         </p>
 
-        {/* The current leader by likes — plain text, one muted line, no
-            count and no label. It previews *what* people are completing this
-            with, not a ranking; the popover is where ranking becomes visible. */}
+        {/* The current leader by likes: the sentence stays dominant, this
+            stays visually secondary. The crown is a small status indicator on
+            the metadata line, not a badge on the completion text itself —
+            there is no "winner", just whichever completion currently has the
+            most likes right now. */}
         {leadingCompletion ? (
-          <p
-            dir="auto"
-            className="mt-2 flex-1 text-body text-content-secondary [word-break:break-word] line-clamp-2"
-          >
-            {leadingCompletion.text}
-          </p>
+          <div className="mt-2 flex-1">
+            <p
+              dir="auto"
+              className="text-body text-content-secondary [word-break:break-word] line-clamp-2"
+            >
+              {leadingCompletion.text}
+            </p>
+            <div className="mt-1 flex items-center gap-1.5 text-caption text-content-muted">
+              <Icon src={assets.iconCrown} size="xs" />
+              <span className="min-w-0 truncate">
+                <bdi>{leadingCompletion.authorName}</bdi>
+              </span>
+              <span aria-hidden className="shrink-0">
+                •
+              </span>
+              <span className="shrink-0">
+                {relativeTime(leadingCompletion.createdAt)}
+              </span>
+            </div>
+          </div>
         ) : (
           <div className="flex-1" />
         )}

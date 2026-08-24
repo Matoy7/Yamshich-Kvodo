@@ -163,16 +163,20 @@ export async function fetchCompletions(
 export type LeadingCompletion = {
   id: string
   text: string
+  authorId: string
+  authorName: string
+  createdAt: string
 }
 
 /**
  * One completion per sentence — whichever currently leads by
  * `likes DESC, created_at DESC` — for the feed's card preview.
  *
- * One batched query for every sentence's completions plus one batched like
- * lookup, regardless of how many cards are on screen. Decorative like
- * everything else attribution-shaped here: any failure resolves to an empty
- * map so the feed still renders, just without previews.
+ * One batched query for every sentence's completions, plus one batched author
+ * lookup and one batched like lookup, regardless of how many cards are on
+ * screen. Decorative like everything else attribution-shaped here: any
+ * failure resolves to an empty map so the feed still renders, just without
+ * previews.
  */
 export async function fetchLeadingCompletions(
   sentenceIds: string[],
@@ -183,7 +187,7 @@ export async function fetchLeadingCompletions(
 
   const { data, error } = await supabase
     .from("completions")
-    .select("id, text, created_at, sentence_id")
+    .select("id, text, created_at, author_id, sentence_id")
     .in("sentence_id", unique)
 
   if (error) return result
@@ -192,15 +196,19 @@ export async function fetchLeadingCompletions(
     id: string
     text: string
     created_at: string
+    author_id: string
     sentence_id: string
   }
   const rows = (data ?? []) as Row[]
   if (rows.length === 0) return result
 
-  const likes = await fetchLikes(
-    rows.map((row) => row.id),
-    null,
-  ).catch(() => null)
+  const [authors, likes] = await Promise.all([
+    fetchAuthors(rows.map((row) => row.author_id)),
+    fetchLikes(
+      rows.map((row) => row.id),
+      null,
+    ).catch(() => null),
+  ])
 
   const bySentence = new Map<string, Row[]>()
   for (const row of rows) {
@@ -216,7 +224,15 @@ export async function fetchLeadingCompletions(
       if (likesA !== likesB) return likesB - likesA
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
-    if (top) result.set(sentenceId, { id: top.id, text: top.text })
+    if (top) {
+      result.set(sentenceId, {
+        id: top.id,
+        text: top.text,
+        authorId: top.author_id,
+        authorName: authorName(authors.get(top.author_id)),
+        createdAt: top.created_at,
+      })
+    }
   }
 
   return result

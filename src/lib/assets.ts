@@ -25,6 +25,10 @@ export const assets = {
   iconHeart: `${base}/heart-outline.svg`,
   iconHeartFilled: `${base}/heart-filled.svg`,
   iconChevronStart: `${base}/chevron-start.svg`,
+  /** Small status indicator for the currently leading completion (by likes).
+   *  Project-authored to match the existing icon language, since a crown was
+   *  not part of the original Figma Make export. */
+  iconCrown: `${base}/crown-status.svg`,
 } as const
 
 export type AssetKey = keyof typeof assets
