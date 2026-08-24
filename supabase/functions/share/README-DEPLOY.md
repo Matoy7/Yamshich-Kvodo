@@ -13,6 +13,51 @@ when the link is *pasted* somewhere — that specific piece genuinely requires
 a server, which GitHub Pages cannot provide (see the long comment at the top
 of `index.ts` for why).
 
+## ⚠️ This function must be public — read this before deploying
+
+Every Edge Function requires a valid Supabase JWT by default. `share` must
+be the one exception: a crawler fetching a pasted link sends no
+`Authorization` header at all, so a JWT-required `share` always fails with
+
+```json
+{ "code": "UNAUTHORIZED_NO_AUTH_HEADER", "message": "Missing authorization header" }
+```
+
+**before `index.ts` ever runs** — this happens at Supabase's gateway, in
+front of the function, so nothing inside the function's own code can fix it.
+
+`supabase/config.toml` in this repo already sets this correctly:
+
+```toml
+[functions.share]
+verify_jwt = false
+```
+
+`supabase functions deploy share` reads this automatically — you don't need
+to pass any extra flag. This is also what makes the setting *durable*: it's
+config-as-code, so it can't silently reset on a future deploy the way a
+Dashboard toggle can (see below).
+
+**If you deployed by pasting code directly into the Supabase Dashboard's
+function editor** rather than via the CLI, `config.toml` was never read at
+all — the Dashboard editor doesn't look at this repo. Two options:
+
+- **Fastest, no CLI**: open the [Supabase Dashboard](https://supabase.com/dashboard)
+  → your project → **Edge Functions** → **share** → its settings/details
+  panel has a **"Verify JWT"** toggle (sometimes labelled *"Verify JWT with
+  legacy secret"*) — turn it **off**. Takes effect immediately, no
+  redeploy needed.
+  ⚠️ Supabase has a known behavior where this toggle can silently flip back
+  **on** the next time the function is updated (via the Dashboard editor
+  *or* the CLI) — see
+  [supabase/supabase#43608](https://github.com/supabase/supabase/issues/43608).
+  If crawler previews stop working again after any later edit to this
+  function, check this toggle first.
+- **Durable, one-time CLI use**: run the deploy steps below once. Since
+  `config.toml` already has `verify_jwt = false`, this both fixes it and
+  makes it stick — no `--no-verify-jwt` flag needed, and no more relying on
+  a toggle that can reset itself.
+
 ## One-time setup
 
 ```bash
@@ -21,7 +66,7 @@ npm install -g supabase
 
 # From the repo root
 supabase login
-supabase link --project-ref <your-project-ref>   # the xxxxxxxx in https://xxxxxxxx.supabase.co
+supabase link --project-ref jpkpzwshylbbdnpncsgi
 ```
 
 ## Deploy
@@ -30,7 +75,8 @@ supabase link --project-ref <your-project-ref>   # the xxxxxxxx in https://xxxxx
 supabase functions deploy share
 ```
 
-That's it — this reads everything from `supabase/functions/share/index.ts`.
+That's it — this reads everything from `supabase/functions/share/index.ts`
+and `supabase/config.toml`.
 
 ## Configuration
 
@@ -54,18 +100,35 @@ step is optional unless the repo or custom domain ever changes.)
 
 ## Verifying it worked
 
+Use your real project ref (`jpkpzwshylbbdnpncsgi`) and a real sentence +
+completion id pair — the pair used while building this feature:
+`dd9abdf0-c622-4b6f-ba97-0ceac48c5636` /
+`66730c25-032d-4041-a142-5050905d7ac1`.
+
 ```bash
-# Pretend to be a crawler — should return HTML with real <meta property="og:..."> tags
-curl -A "facebookexternalhit/1.1" \
-  "https://<your-project-ref>.supabase.co/functions/v1/share/sentence/<a-real-sentence-id>/completion/<a-real-completion-id>"
+# 1. No Authorization header at all — this is exactly what a crawler sends.
+#    Before the fix this returns 401 with UNAUTHORIZED_NO_AUTH_HEADER.
+#    After the fix it must NOT be a 401.
+curl -i \
+  "https://jpkpzwshylbbdnpncsgi.supabase.co/functions/v1/share/sentence/dd9abdf0-c622-4b6f-ba97-0ceac48c5636/completion/66730c25-032d-4041-a142-5050905d7ac1" \
+  | head -1
 
-# Pretend to be a normal browser — should return a 302 to matoy7.github.io
+# 2. Same URL, with a crawler user-agent — should return real HTML
+#    containing og:title, og:description, og:image, og:url and
+#    twitter:card, not an error page.
+curl -s -A "facebookexternalhit/1.1" \
+  "https://jpkpzwshylbbdnpncsgi.supabase.co/functions/v1/share/sentence/dd9abdf0-c622-4b6f-ba97-0ceac48c5636/completion/66730c25-032d-4041-a142-5050905d7ac1" \
+  | grep -E 'og:title|og:description|og:image|og:url|twitter:card'
+
+# 3. Same URL, with an ordinary browser user-agent — should be a 302 to
+#    matoy7.github.io, not a redirect to a login page or another error.
 curl -I -A "Mozilla/5.0" \
-  "https://<your-project-ref>.supabase.co/functions/v1/share/sentence/<a-real-sentence-id>/completion/<a-real-completion-id>"
+  "https://jpkpzwshylbbdnpncsgi.supabase.co/functions/v1/share/sentence/dd9abdf0-c622-4b6f-ba97-0ceac48c5636/completion/66730c25-032d-4041-a142-5050905d7ac1"
 
-# The dynamic image itself
+# 4. The dynamic image itself must also be publicly reachable — og:image
+#    is useless to a crawler if fetching it also 401s.
 curl -o preview.png \
-  "https://<your-project-ref>.supabase.co/functions/v1/share/og-image/<a-real-sentence-id>/<a-real-completion-id>.png"
+  "https://jpkpzwshylbbdnpncsgi.supabase.co/functions/v1/share/og-image/dd9abdf0-c622-4b6f-ba97-0ceac48c5636/66730c25-032d-4041-a142-5050905d7ac1.png"
 ```
 
 Real end-to-end confirmation: paste a real share link into

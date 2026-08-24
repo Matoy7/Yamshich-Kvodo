@@ -1,0 +1,20 @@
+# Supabase project configuration.
+#
+# The only thing this file currently does is keep the `share` Edge Function
+# publicly callable. Without it, `supabase functions deploy share` uses the
+# CLI's default — every Edge Function requires a valid Supabase JWT in its
+# Authorization header before the gateway even invokes the function's code.
+# That default is exactly wrong for `share`: social crawlers (WhatsApp,
+# Facebook, Telegram, LinkedIn, X…) fetch the link with no Authorization
+# header at all, so a JWT-required function always gives them
+# UNAUTHORIZED_NO_AUTH_HEADER before supabase/functions/share/index.ts ever
+# runs — no amount of fixing that file's own code changes this, since the
+# rejection happens at the gateway, in front of it.
+#
+# See supabase/functions/share/index.ts for why this function has to be
+# public at all, and supabase/functions/share/README-DEPLOY.md for the full
+# deploy walkthrough.
+project_id = "jpkpzwshylbbdnpncsgi"
+
+[functions.share]
+verify_jwt = false
