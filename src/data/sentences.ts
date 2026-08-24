@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase"
 
 /** Limits mirror the CHECK constraints in supabase/schema.sql. */
-export const SENTENCE_MAX_LENGTH = 120
+export const SENTENCE_MAX_LENGTH = 90
 export const COMPLETION_MAX_LENGTH = 200
 
 export type FeedView = "home" | "started" | "completed"

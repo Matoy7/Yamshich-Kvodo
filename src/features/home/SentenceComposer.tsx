@@ -150,7 +150,7 @@ export function SentenceComposer({
 
         {/* Counter, bottom inline-end of the field. The wrapper stays in the
             field's RTL flow so `end-3` resolves to the left; only the inner
-            span is forced LTR so the digits read "0 / 120", not "120 / 0". */}
+            span is forced LTR so the digits read "0 / 90", not "90 / 0". */}
         <span
           aria-hidden
           className="absolute bottom-0.5 end-3 text-caption text-content-muted"

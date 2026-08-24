@@ -48,7 +48,11 @@ create unique index if not exists profiles_display_name_unique
 create table if not exists public.sentences (
   id         uuid primary key default gen_random_uuid(),
   author_id  uuid not null references public.profiles (id) on delete cascade,
-  text       text not null check (char_length(btrim(text)) between 1 and 120),
+  -- Tightened from 120 to 90 in August 2026. An existing database created
+  -- before that change needs supabase/2026-08-sentence-max-length-90.sql —
+  -- this inline definition only takes effect for a brand-new install, since
+  -- the table above is only created "if not exists".
+  text       text not null check (char_length(btrim(text)) between 1 and 90),
   created_at timestamptz not null default now()
 );
 
