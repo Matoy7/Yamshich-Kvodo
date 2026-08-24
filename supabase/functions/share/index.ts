@@ -162,7 +162,6 @@ function renderCrawlerHtml(
 <meta name="twitter:title" content="${escapeHtml(ogTitle)}" />
 <meta name="twitter:description" content="${escapeHtml(description)}" />
 <meta name="twitter:image" content="${imageUrl}" />
-<meta http-equiv="refresh" content="0; url=${canonicalUrl}" />
 </head>
 <body>
 <p>
@@ -267,9 +266,74 @@ function loadResvgWasm() {
 
 /** Truncates to a sentence-ish length so the card never overflows —
  *  measuring exact width isn't available before satori lays it out, so this
- *  is a conservative character budget rather than a pixel one. */
+ *  is a conservative character budget rather than a pixel one. Always call
+ *  this before visualHebrew: truncation operates on the logical (natural
+ *  reading-order) string; reordering for display must happen last. */
 function clip(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
+
+/**
+ * Satori has no bidi/RTL support at all — confirmed directly against its own
+ * README ("RTL languages are not supported either") and issue tracker
+ * (vercel/satori#74: "There is no current plan for RTL languages"). It lays
+ * out any string strictly left-to-right in whatever order the characters
+ * are stored in. Unicode always stores Hebrew in logical (reading) order —
+ * it's normally the renderer's job to reverse that for display — so text
+ * that's correct everywhere else in this app came out mirrored here
+ * specifically because satori is the one renderer in the stack that skips
+ * that step.
+ *
+ * This does that reversal ourselves before satori ever sees the string:
+ * split into runs of Hebrew vs. everything else, reverse the run order, and
+ * reverse the character order *within* each Hebrew run only. Hebrew letters
+ * aren't reshaped based on position the way Arabic's are, so reversing a
+ * Hebrew run's characters is safe — the same trick would actively break
+ * Arabic. A non-Hebrew run (a whole "iPhone 15", not just one word of it)
+ * keeps its own internal order untouched and is just repositioned with its
+ * run, so an embedded product name, year, or English phrase doesn't come out
+ * backwards, or with its own words swapped, either.
+ *
+ * This is a simplified approximation of the Unicode Bidirectional
+ * Algorithm, not a full implementation — verified correct (by simulating a
+ * right-to-left read of the rendered output and checking it matches the
+ * original) for pure-Hebrew strings, Hebrew with a single embedded run of
+ * Latin/digits/punctuation, and Hebrew with multiple embedded runs — which
+ * covers every shape of text this function actually renders (a sentence, a
+ * completion, a name), not arbitrary multi-directional documents.
+ */
+function visualHebrew(text: string): string {
+  const HEBREW = /[\u0590-\u05FF]/
+  type Run = { text: string; isHebrew: boolean }
+  const runs: Run[] = []
+
+  for (const ch of text) {
+    const isHebrew = HEBREW.test(ch)
+    const last = runs[runs.length - 1]
+    if (last && last.isHebrew === isHebrew) {
+      last.text += ch
+    } else {
+      runs.push({ text: ch, isHebrew })
+    }
+  }
+
+  const reordered = runs
+    .reverse()
+    .map((run) => (run.isHebrew ? [...run.text].reverse().join("") : run.text))
+
+  // A run boundary that was a plain space in the original text (e.g. between
+  // a Hebrew word and an embedded English one) can end up with no separator
+  // at all once both sides are repositioned — insert one back only where
+  // neither side already ends/starts with whitespace, so words never
+  // visually collide.
+  let result = ""
+  for (const [index, run] of reordered.entries()) {
+    if (index > 0 && !/\s/.test(result.slice(-1)) && !/\s/.test(run.slice(0, 1))) {
+      result += " "
+    }
+    result += run
+  }
+  return result
 }
 
 async function renderOgImage(data: SharedData): Promise<Uint8Array> {
@@ -301,7 +365,7 @@ async function renderOgImage(data: SharedData): Promise<Uint8Array> {
               fontSize: 56,
               fontWeight: 700,
             },
-            children: BRAND_NAME,
+            children: visualHebrew(BRAND_NAME),
           },
         },
         {
@@ -341,7 +405,7 @@ async function renderOgImage(data: SharedData): Promise<Uint8Array> {
                     fontSize: 32,
                     maxWidth: 900,
                   },
-                  children: `${clip(data.sentenceText, 60)}...`,
+                  children: visualHebrew(`${clip(data.sentenceText, 60)}...`),
                 },
               },
               {
@@ -358,7 +422,7 @@ async function renderOgImage(data: SharedData): Promise<Uint8Array> {
                     maxWidth: 900,
                     marginRight: 72,
                   },
-                  children: clip(data.completionText, 70),
+                  children: visualHebrew(clip(data.completionText, 70)),
                 },
               },
             ],
@@ -374,7 +438,7 @@ async function renderOgImage(data: SharedData): Promise<Uint8Array> {
               color: "#f8e3ca",
               gap: 10,
             },
-            children: `${data.authorName} · ♥ ${data.likeCount}`,
+            children: visualHebrew(`${data.authorName} · ♥ ${data.likeCount}`),
           },
         },
       ],
@@ -402,8 +466,20 @@ Deno.serve(async (req) => {
   const url = new URL(req.url)
   const userAgent = req.headers.get("user-agent")
 
+  // Temporary diagnostic logging — remove once the og-image 404 is
+  // resolved. Shows exactly what this function receives for every request,
+  // so `supabase functions logs share` (or the Dashboard's Logs tab) answers
+  // definitively whether a given request even reached this code at all.
+  console.log("SHARE REQUEST", {
+    url: req.url,
+    pathname: url.pathname,
+    method: req.method,
+    userAgent,
+  })
+
   const imageMatch = IMAGE_ROUTE.exec(url.pathname)
   if (imageMatch) {
+    console.log("SHARE REQUEST matched IMAGE_ROUTE", imageMatch[0])
     const [, sentenceId, completionId] = imageMatch
     const data = await fetchSharedData(sentenceId, completionId)
     if (!data) return new Response("not found", { status: 404 })
@@ -435,6 +511,7 @@ Deno.serve(async (req) => {
 
   const pageMatch = SENTENCE_ROUTE.exec(url.pathname)
   if (pageMatch) {
+    console.log("SHARE REQUEST matched SENTENCE_ROUTE", pageMatch[0])
     const [, sentenceId, completionId] = pageMatch
     const canonicalUrl = `${SITE_ORIGIN}/sentence/${sentenceId}/completion/${completionId}`
 
@@ -479,5 +556,6 @@ Deno.serve(async (req) => {
     })
   }
 
+  console.log("SHARE REQUEST matched no route", url.pathname)
   return new Response("not found", { status: 404 })
 })
