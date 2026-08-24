@@ -396,7 +396,15 @@ Deno.serve(async (req) => {
       0,
       url.pathname.indexOf("/sentence/"),
     )
-    const imageUrl = `${url.origin}${functionBase}/og-image/${sentenceId}/${completionId}.png`
+    // Forced to https explicitly rather than using url.origin/url.protocol:
+    // Supabase's edge runtime reports the *internal* request scheme to the
+    // function, which comes through as http even though the function is
+    // only ever publicly reachable over https. Using url.origin verbatim
+    // produced an http:// og:image URL in production — WhatsApp and other
+    // crawlers silently drop a preview whose image URL isn't https, so this
+    // isn't cosmetic. The function is never actually served over plain
+    // http, so hardcoding the scheme here is correct, not a workaround.
+    const imageUrl = `https://${url.host}${functionBase}/og-image/${sentenceId}/${completionId}.png`
     const html = renderCrawlerHtml(data, canonicalUrl, imageUrl)
     return new Response(html, {
       headers: { "content-type": "text/html; charset=utf-8" },

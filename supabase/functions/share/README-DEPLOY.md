@@ -115,7 +115,9 @@ curl -i \
 
 # 2. Same URL, with a crawler user-agent — should return real HTML
 #    containing og:title, og:description, og:image, og:url and
-#    twitter:card, not an error page.
+#    twitter:card, not an error page. og:image and twitter:image must both
+#    start with https:// — if either shows http://, the function running in
+#    production is still the pre-fix build and needs redeploying.
 curl -s -A "facebookexternalhit/1.1" \
   "https://jpkpzwshylbbdnpncsgi.supabase.co/functions/v1/share/sentence/dd9abdf0-c622-4b6f-ba97-0ceac48c5636/completion/66730c25-032d-4041-a142-5050905d7ac1" \
   | grep -E 'og:title|og:description|og:image|og:url|twitter:card'
@@ -125,16 +127,23 @@ curl -s -A "facebookexternalhit/1.1" \
 curl -I -A "Mozilla/5.0" \
   "https://jpkpzwshylbbdnpncsgi.supabase.co/functions/v1/share/sentence/dd9abdf0-c622-4b6f-ba97-0ceac48c5636/completion/66730c25-032d-4041-a142-5050905d7ac1"
 
-# 4. The dynamic image itself must also be publicly reachable — og:image
-#    is useless to a crawler if fetching it also 401s.
-curl -o preview.png \
-  "https://jpkpzwshylbbdnpncsgi.supabase.co/functions/v1/share/og-image/dd9abdf0-c622-4b6f-ba97-0ceac48c5636/66730c25-032d-4041-a142-5050905d7ac1.png"
+# 4. The image URL printed by step 2 must itself be publicly fetchable over
+#    https, with no auth error — this is what actually gets embedded in the
+#    WhatsApp/Facebook preview, so if this fails the preview will too even
+#    though the HTML above looks correct.
+curl -i -o preview.png \
+  "https://jpkpzwshylbbdnpncsgi.supabase.co/functions/v1/share/og-image/dd9abdf0-c622-4b6f-ba97-0ceac48c5636/66730c25-032d-4041-a142-5050905d7ac1.png" \
+  | head -1
+file preview.png   # should say "PNG image data", not "ASCII text" (an error body)
 ```
 
 Real end-to-end confirmation: paste a real share link into
 [Facebook's Sharing Debugger](https://developers.facebook.com/tools/debug/)
 or [Twitter Card Validator](https://cards-dev.twitter.com/validator) and
-check the preview it renders.
+check the preview it renders. Facebook's debugger also has a "Scrape Again"
+button, useful since it caches a link's preview the first time it's fetched
+— if you tested this link before the https fix, force a re-scrape rather
+than trusting a cached result.
 
 ## Why the copied link points at supabase.co, not matoy7.github.io
 
