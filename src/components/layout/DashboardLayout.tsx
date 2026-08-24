@@ -10,6 +10,9 @@ type DashboardLayoutProps = {
   navItems: NavItem[]
   activeNavId: string
   searchPlaceholder: string
+  searchQuery: string
+  onSearch: (query: string) => void
+  onClearSearch: () => void
   userName: string
   avatarUrl: string
   canUpgrade?: boolean
@@ -31,6 +34,9 @@ export function DashboardLayout({
   navItems,
   activeNavId,
   searchPlaceholder,
+  searchQuery,
+  onSearch,
+  onClearSearch,
   userName,
   avatarUrl,
   canUpgrade,
@@ -48,6 +54,9 @@ export function DashboardLayout({
         items={navItems}
         activeId={activeNavId}
         searchPlaceholder={searchPlaceholder}
+        searchQuery={searchQuery}
+        onSearch={onSearch}
+        onClearSearch={onClearSearch}
         userName={userName}
         canUpgrade={canUpgrade}
         onSelect={onSelectNav}
@@ -61,6 +70,9 @@ export function DashboardLayout({
         items={navItems}
         activeId={activeNavId}
         searchPlaceholder={searchPlaceholder}
+        searchQuery={searchQuery}
+        onSearch={onSearch}
+        onClearSearch={onClearSearch}
         userName={userName}
         canUpgrade={canUpgrade}
         onSelect={onSelectNav}

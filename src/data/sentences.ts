@@ -264,3 +264,35 @@ export async function createCompletion(
 
   if (error) throw error
 }
+
+/** How many sentences and completions this user has authored, for the
+ *  navigation labels ("משפטים שהתחלתי (X)" / "משפטים שהשלמתי (X)"). */
+export type NavCounts = {
+  started: number
+  completed: number
+}
+
+/**
+ * Two row-count queries — `head: true` asks Postgres for the count only, no
+ * rows transferred. Applies to the current user, guest or authenticated
+ * alike: both are real `auth.uid()` values, so the same `eq` works for
+ * either. A failure resolves to 0 for that count rather than throwing —
+ * these numbers are secondary to the label they sit inside.
+ */
+export async function fetchNavCounts(userId: string): Promise<NavCounts> {
+  const [started, completed] = await Promise.all([
+    supabase
+      .from("sentences")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", userId),
+    supabase
+      .from("completions")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", userId),
+  ])
+
+  return {
+    started: started.error ? 0 : (started.count ?? 0),
+    completed: completed.error ? 0 : (completed.count ?? 0),
+  }
+}

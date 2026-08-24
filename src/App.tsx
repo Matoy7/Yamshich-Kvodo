@@ -6,6 +6,8 @@ import { HeroBanner } from "@/features/home/HeroBanner"
 import { SentenceGrid } from "@/features/home/SentenceGrid"
 import { CompletionDialog } from "@/features/home/CompletionDialog"
 import { useFeed } from "@/features/home/useFeed"
+import { useSentenceSearch } from "@/features/home/useSearch"
+import { useNavCounts } from "@/features/home/useNavCounts"
 import { LoginScreen } from "@/features/auth/LoginScreen"
 import { useSession } from "@/features/auth/useSession"
 import {
@@ -78,13 +80,36 @@ export default function App() {
     refreshLeadingCompletion,
   } = useFeed(view, userId)
 
+  const search = useSentenceSearch(sentences)
+  const { counts: navCounts, refresh: refreshNavCounts } = useNavCounts(userId)
+
+  // The search narrows the already-loaded feed — it never fetches a separate
+  // results page, and it never touches ranking. When inactive, the grid gets
+  // exactly what it always got.
+  const visibleSentences = search.active
+    ? (search.results ?? sentences)
+    : sentences
+  const gridLoading = search.active ? search.loading : loading
+  const gridError = search.active
+    ? search.error
+      ? "לא הצלחנו לחפש."
+      : null
+    : error
+
+  const navItemsWithCounts = navItems.map((item) => {
+    if (item.id === "started") return { ...item, count: navCounts.started }
+    if (item.id === "completed") return { ...item, count: navCounts.completed }
+    return item
+  })
+
   const handleCreateSentence = useCallback(
     async (text: string) => {
       if (!userId) return
       await createSentence(text, userId)
       reload()
+      refreshNavCounts()
     },
-    [userId, reload],
+    [userId, reload, refreshNavCounts],
   )
 
   const handleCreateCompletion = useCallback(
@@ -92,8 +117,9 @@ export default function App() {
       if (!userId) return
       await createCompletion(sentenceId, text, userId)
       reload()
+      refreshNavCounts()
     },
-    [userId, reload],
+    [userId, reload, refreshNavCounts],
   )
 
   if (!isSupabaseConfigured) {
@@ -150,9 +176,12 @@ export default function App() {
       <DashboardLayout
         brandName={PRODUCT_NAME}
         brandTagline={TAGLINE}
-        navItems={navItems}
+        navItems={navItemsWithCounts}
         activeNavId={view}
         searchPlaceholder="חיפוש"
+        searchQuery={search.query}
+        onSearch={search.search}
+        onClearSearch={search.clear}
         userName={userName}
         avatarUrl={avatarUrl}
         canUpgrade={canUpgradeAccount(session.user)}
@@ -183,14 +212,15 @@ export default function App() {
           }
         >
           <SentenceGrid
-            sentences={sentences}
+            sentences={visibleSentences}
             completedIds={completedIds}
             authorNames={authorNames}
             leadingCompletions={leadingCompletions}
             currentUserId={session.user.id}
             view={view}
-            loading={loading}
-            error={error}
+            loading={gridLoading}
+            error={gridError}
+            searchQuery={search.query}
             onComplete={setCompleting}
             onLikeChange={refreshLeadingCompletion}
           />

@@ -13,6 +13,9 @@ type MobileNavProps = {
   items: NavItem[]
   activeId: string
   searchPlaceholder: string
+  searchQuery: string
+  onSearch: (query: string) => void
+  onClearSearch: () => void
   userName: string
   canUpgrade?: boolean
   onSelect: (id: string) => void
@@ -30,6 +33,9 @@ export function MobileNav({
   items,
   activeId,
   searchPlaceholder,
+  searchQuery,
+  onSearch,
+  onClearSearch,
   userName,
   canUpgrade,
   onSelect,
@@ -76,7 +82,15 @@ export function MobileNav({
           open ? "translate-x-0" : "translate-x-full",
         )}
       >
-        <SidebarSearch placeholder={searchPlaceholder} />
+        <SidebarSearch
+          placeholder={searchPlaceholder}
+          query={searchQuery}
+          onSearch={(query) => {
+            onSearch(query)
+            onClose()
+          }}
+          onClear={onClearSearch}
+        />
         <SidebarNav
           items={items}
           activeId={activeId}

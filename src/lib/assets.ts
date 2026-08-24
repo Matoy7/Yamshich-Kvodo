@@ -25,6 +25,10 @@ export const assets = {
   iconHeart: `${base}/heart-outline.svg`,
   iconHeartFilled: `${base}/heart-filled.svg`,
   iconChevronStart: `${base}/chevron-start.svg`,
+  /** Project-authored to match the stroke-icon language above (24px grid,
+   *  same weight and colour as the heart icons), since search predates a
+   *  dedicated icon in the Figma Make export. */
+  iconSearch: `${base}/search.svg`,
   /** Small status indicator for the currently leading completion (by likes).
    *  Project-authored, since a crown was not part of the original Figma Make
    *  export — a warm gold fill by design, the one icon in this set that

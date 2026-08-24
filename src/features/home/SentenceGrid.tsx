@@ -13,6 +13,10 @@ type SentenceGridProps = {
   view: FeedView
   loading: boolean
   error: string | null
+  /** The active, submitted search query — "" when search is inactive. Only
+   *  changes which empty-state copy shows; filtering itself happens before
+   *  `sentences` reaches this component. */
+  searchQuery?: string
   onComplete: (sentence: Sentence) => void
   onLikeChange: (sentenceId: string) => void
 }
@@ -47,12 +51,17 @@ export function SentenceGrid({
   view,
   loading,
   error,
+  searchQuery,
   onComplete,
   onLikeChange,
 }: SentenceGridProps) {
   if (loading) {
     return (
-      <div className={GRID} aria-busy="true" aria-label="טוען משפטים">
+      <div
+        className={GRID}
+        aria-busy="true"
+        aria-label={searchQuery ? "מחפש" : "טוען משפטים"}
+      >
         {Array.from({ length: 6 }, (_, index) => (
           <Card
             key={index}
@@ -71,7 +80,9 @@ export function SentenceGrid({
   }
 
   if (sentences.length === 0) {
-    const copy = EMPTY_COPY[view]
+    const copy = searchQuery
+      ? { title: "לא מצאנו משפטים מתאימים", description: "נסה לחפש מילה אחרת" }
+      : EMPTY_COPY[view]
     return <EmptyState title={copy.title} description={copy.description} />
   }
 
