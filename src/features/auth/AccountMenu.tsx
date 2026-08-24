@@ -1,10 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { ReactNode } from "react"
-import { Icon } from "@/components/ui/Icon"
 import { GoogleIcon } from "./ProviderIcons"
-import { SettingsIcon, SignOutIcon } from "./MenuIcons"
-import { assets } from "@/lib/assets"
+import { SignOutIcon } from "./MenuIcons"
 import { cn } from "@/lib/cn"
 
 type AccountMenuProps = {
@@ -14,24 +12,20 @@ type AccountMenuProps = {
   isGuest: boolean
   onLinkGoogle: () => void
   onSignOut: () => void
-  onProfile?: () => void
-  onSettings?: () => void
 }
 
 type ItemProps = {
   icon: ReactNode
   children: ReactNode
-  onClick?: () => void
-  disabled?: boolean
+  onClick: () => void
   emphasis?: boolean
 }
 
-function MenuItem({ icon, children, onClick, disabled, emphasis }: ItemProps) {
+function MenuItem({ icon, children, onClick, emphasis }: ItemProps) {
   return (
     <button
       type="button"
       role="menuitem"
-      disabled={disabled}
       onClick={onClick}
       className={cn(
         "flex w-full items-center gap-3 rounded-md px-3 text-start transition-colors duration-150",
@@ -39,7 +33,6 @@ function MenuItem({ icon, children, onClick, disabled, emphasis }: ItemProps) {
         emphasis
           ? "border border-border bg-surface text-content-primary shadow-card hover:bg-surface-hover hover:border-border-strong"
           : "text-content-secondary hover:bg-surface-hover hover:text-content-primary",
-        disabled && "cursor-not-allowed opacity-45 hover:bg-transparent",
       )}
     >
       <span className="flex size-5 shrink-0 items-center justify-center">
@@ -60,8 +53,6 @@ export function AccountMenu({
   isGuest,
   onLinkGoogle,
   onSignOut,
-  onProfile,
-  onSettings,
 }: AccountMenuProps) {
   const [open, setOpen] = useState(false)
   // The header uses `backdrop-blur`, which makes it the containing block for
@@ -133,38 +124,26 @@ export function AccountMenu({
     </div>
   )
 
-  const items = (
-    <>
-      {isGuest ? (
-        <MenuItem icon={<GoogleIcon />} emphasis onClick={run(onLinkGoogle)}>
-          כניסה עם Google
-        </MenuItem>
-      ) : null}
-
-      <MenuItem
-        icon={<Icon src={assets.iconPerson} size="md" />}
-        onClick={onProfile ? run(onProfile) : undefined}
-        disabled={!onProfile}
-      >
-        פרופיל
-      </MenuItem>
-
-      <MenuItem
-        icon={<SettingsIcon />}
-        onClick={onSettings ? run(onSettings) : undefined}
-        disabled={!onSettings}
-      >
-        הגדרות
-      </MenuItem>
-    </>
-  )
-
   const panel = (
     <>
       <div className="px-1 pb-1 sm:px-2 sm:pt-1">{identity}</div>
       <div className="h-px bg-border" aria-hidden />
-      <div className="flex flex-col gap-1">{items}</div>
-      <div className="h-px bg-border" aria-hidden />
+
+      {isGuest ? (
+        <>
+          <div className="flex flex-col gap-1">
+            <MenuItem
+              icon={<GoogleIcon />}
+              emphasis
+              onClick={run(onLinkGoogle)}
+            >
+              כניסה עם Google
+            </MenuItem>
+          </div>
+          <div className="h-px bg-border" aria-hidden />
+        </>
+      ) : null}
+
       <MenuItem icon={<SignOutIcon />} onClick={run(onSignOut)}>
         יציאה
       </MenuItem>
