@@ -184,30 +184,82 @@ function renderCrawlerHtml(
 const WIDTH = 1200
 const HEIGHT = 630
 
-let fontsPromise: Promise<{ alef: ArrayBuffer; rubik: ArrayBuffer }> | null = null
+/**
+ * "@latest" rather than a pinned version: Fontsource's CDN docs confirm this
+ * is a genuinely supported floating tag, not a guess — and a fabricated
+ * exact version number that happens not to exist would 404 every single
+ * font fetch, which is a worse failure mode than the one this is fixing.
+ */
+const FONT_VERSION = "latest"
+
+type FontDescriptor = { name: string; data: ArrayBuffer; weight: number }
+
+let fontsPromise: Promise<FontDescriptor[]> | null = null
 let wasmReady: Promise<void> | null = null
 
-/** Fetched once per warm function instance, not once per request. */
-function loadFonts() {
+/** Fetches one Fontsource file and fails loudly (not with corrupted font
+ *  bytes) if the CDN doesn't return one — `fetch` only rejects on a network
+ *  failure, never on a 4xx/5xx, so an unchecked `.arrayBuffer()` on a 403/404
+ *  response silently hands satori the bytes of an error page instead of a
+ *  font, which satori then fails to parse with an opaque, hard-to-place
+ *  error. Checking `.ok` here turns that into a clear, logged reason. */
+async function fetchFont(
+  id: string,
+  subset: string,
+  weight: number,
+): Promise<ArrayBuffer> {
+  const url = `https://cdn.jsdelivr.net/fontsource/fonts/${id}@${FONT_VERSION}/${subset}-${weight}-normal.ttf`
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`font fetch failed (${response.status}): ${url}`)
+  }
+  return response.arrayBuffer()
+}
+
+/**
+ * Fetched once per warm function instance, not once per request.
+ *
+ * Rubik is registered for both weights actually used in the tree (400 for
+ * body copy, 500 for the completion bubble) and both the hebrew and latin
+ * subsets — a sentence or completion is free-text a person typed, so it can
+ * contain Latin characters (names, numbers, an English word) as easily as
+ * Hebrew ones; a hebrew-only subset simply has no glyphs for those, which
+ * satori/resvg would drop or fail on. Providing two subset files under the
+ * same family name is how satori is meant to combine script coverage.
+ * Alef is Hebrew-only because it renders exactly one fixed, all-Hebrew
+ * string — the brand mark — never user content.
+ */
+function loadFonts(): Promise<FontDescriptor[]> {
   if (!fontsPromise) {
     fontsPromise = Promise.all([
-      fetch(
-        "https://cdn.jsdelivr.net/fontsource/fonts/alef@latest/hebrew-700-normal.woff",
-      ).then((r) => r.arrayBuffer()),
-      fetch(
-        "https://cdn.jsdelivr.net/fontsource/fonts/rubik@latest/hebrew-400-normal.woff",
-      ).then((r) => r.arrayBuffer()),
-    ]).then(([alef, rubik]) => ({ alef, rubik }))
+      fetchFont("alef", "hebrew", 700),
+      fetchFont("rubik", "hebrew", 400),
+      fetchFont("rubik", "latin", 400),
+      fetchFont("rubik", "hebrew", 500),
+      fetchFont("rubik", "latin", 500),
+    ]).then(
+      ([alef700, rubikHe400, rubikLa400, rubikHe500, rubikLa500]) => [
+        { name: "Alef", data: alef700, weight: 700 },
+        { name: "Rubik", data: rubikHe400, weight: 400 },
+        { name: "Rubik", data: rubikLa400, weight: 400 },
+        { name: "Rubik", data: rubikHe500, weight: 500 },
+        { name: "Rubik", data: rubikLa500, weight: 500 },
+      ],
+    )
   }
   return fontsPromise
 }
 
 function loadResvgWasm() {
   if (!wasmReady) {
-    wasmReady = fetch(
-      "https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm",
-    )
-      .then((r) => r.arrayBuffer())
+    const wasmUrl = "https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm"
+    wasmReady = fetch(wasmUrl)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`resvg wasm fetch failed (${response.status}): ${wasmUrl}`)
+        }
+        return response.arrayBuffer()
+      })
       .then((buffer) => initWasm(buffer))
   }
   return wasmReady
@@ -221,7 +273,7 @@ function clip(text: string, max: number): string {
 }
 
 async function renderOgImage(data: SharedData): Promise<Uint8Array> {
-  const { alef, rubik } = await loadFonts()
+  const fonts = await loadFonts()
   await loadResvgWasm()
 
   const tree = {
@@ -332,10 +384,7 @@ async function renderOgImage(data: SharedData): Promise<Uint8Array> {
   const svg = await satori(tree as never, {
     width: WIDTH,
     height: HEIGHT,
-    fonts: [
-      { name: "Alef", data: alef, weight: 700, style: "normal" },
-      { name: "Rubik", data: rubik, weight: 400, style: "normal" },
-    ],
+    fonts: fonts.map((font) => ({ ...font, style: "normal" as const })),
   })
 
   const resvg = new Resvg(svg, { fitTo: { mode: "width", value: WIDTH } })
@@ -370,8 +419,17 @@ Deno.serve(async (req) => {
         },
       })
     } catch (error) {
-      console.error("og image render failed", error)
-      return new Response("image generation failed", { status: 500 })
+      // The message is safe to return as-is: it's either one of the
+      // descriptive font/wasm-fetch errors thrown above (a URL and an HTTP
+      // status, nothing sensitive) or satori/resvg's own error, never
+      // anything from Postgres or the service-role credential. Returning it
+      // directly means a broken image is diagnosable from a plain curl,
+      // without needing to go find it in `supabase functions logs`.
+      const message = error instanceof Error ? error.message : String(error)
+      console.error("og image render failed:", message)
+      return new Response(`image generation failed: ${message}`, {
+        status: 500,
+      })
     }
   }
 

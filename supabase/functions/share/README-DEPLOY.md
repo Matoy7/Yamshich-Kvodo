@@ -130,7 +130,10 @@ curl -I -A "Mozilla/5.0" \
 # 4. The image URL printed by step 2 must itself be publicly fetchable over
 #    https, with no auth error — this is what actually gets embedded in the
 #    WhatsApp/Facebook preview, so if this fails the preview will too even
-#    though the HTML above looks correct.
+#    though the HTML above looks correct. If it fails, the response body is
+#    now a plain-text error message describing exactly what went wrong
+#    (which font/wasm fetch failed and its HTTP status, or satori/resvg's
+#    own error) — no need to dig through `supabase functions logs` first.
 curl -i -o preview.png \
   "https://jpkpzwshylbbdnpncsgi.supabase.co/functions/v1/share/og-image/dd9abdf0-c622-4b6f-ba97-0ceac48c5636/66730c25-032d-4041-a142-5050905d7ac1.png" \
   | head -1
