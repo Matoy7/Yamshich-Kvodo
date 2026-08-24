@@ -41,24 +41,27 @@ type PreviewProps = {
   sentence: Sentence
   authorName: string | null
   currentUserId: string | null
+  /** The card that owns this popover — also excluded from the outside-click
+   *  close check, since the trigger button that opened it lives inside it. */
   anchor: HTMLElement
-  onPointerEnter: () => void
-  onPointerLeave: () => void
+  onClose: () => void
   /** Fires once a like write commits, so the card's own preview can refresh. */
   onLikeChange?: () => void
 }
 
 /**
- * Desktop hover preview: a floating, non-modal popover. The feed stays visible
- * and interactive behind it — no overlay, no scroll lock.
+ * Desktop click-triggered preview: a floating, non-modal popover anchored to
+ * the card whose "X השלמות ›" button opened it. The feed stays visible and
+ * interactive behind it — no overlay, no scroll lock. Dismissed only by an
+ * intentional action: a click outside, or Escape — never by the pointer
+ * merely leaving the card.
  */
 export function CompletionsPreview({
   sentence,
   authorName,
   currentUserId,
   anchor,
-  onPointerEnter,
-  onPointerLeave,
+  onClose,
   onLikeChange,
 }: PreviewProps) {
   const panelRef = useRef<HTMLDivElement>(null)
@@ -90,14 +93,33 @@ export function CompletionsPreview({
     return () => window.clearTimeout(id)
   }, [anchor, completions])
 
+  // Closes on an intentional click outside the popover, or Escape. The
+  // trigger button lives inside `anchor`, so clicks there are excluded —
+  // otherwise the same click that opens the popover would also close it.
+  useEffect(() => {
+    const onDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (anchor.contains(target)) return
+      if (panelRef.current?.contains(target)) return
+      onClose()
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose()
+    }
+    document.addEventListener("mousedown", onDown)
+    document.addEventListener("keydown", onKeyDown)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      document.removeEventListener("keydown", onKeyDown)
+    }
+  }, [anchor, onClose])
+
   return createPortal(
     <div
       ref={panelRef}
       role="dialog"
       aria-label={`השלמות עבור: ${sentence.text}`}
       data-completions-preview
-      onPointerEnter={onPointerEnter}
-      onPointerLeave={onPointerLeave}
       style={{
         width: WIDTH,
         maxHeight: MAX_HEIGHT,
@@ -113,14 +135,6 @@ export function CompletionsPreview({
         placement && !placement.above && "-translate-y-0.5",
       )}
     >
-      {/* Invisible bridge across the gap, so the pointer can travel from the
-          card into the popover without passing through dead space. */}
-      <span
-        aria-hidden
-        className="absolute inset-x-0 h-3"
-        style={placement?.above ? { bottom: -12 } : { top: -12 }}
-      />
-
       <CompletionsPanel
         sentence={sentence}
         authorName={authorName}

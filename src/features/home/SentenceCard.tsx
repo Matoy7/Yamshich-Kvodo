@@ -8,11 +8,6 @@ import { assets } from "@/lib/assets"
 import type { Sentence } from "@/data/sentences"
 import type { LeadingCompletion } from "@/data/completions"
 
-/** Long enough that skimming the feed never fires a request. */
-const OPEN_DELAY = 200
-/** Grace period so the pointer can travel from card to popover. */
-const CLOSE_DELAY = 140
-
 type SentenceCardProps = {
   sentence: Sentence
   completed: boolean
@@ -27,7 +22,7 @@ type SentenceCardProps = {
   onLikeChange?: (sentenceId: string) => void
 }
 
-/** Hover previews only where hovering is real; tap opens a sheet elsewhere. */
+/** Popover on a real desktop pointer; a touch-friendly sheet everywhere else. */
 function useHoverCapable(): boolean {
   const [capable, setCapable] = useState(
     () =>
@@ -50,6 +45,16 @@ function useHoverCapable(): boolean {
   return capable
 }
 
+/**
+ * Hebrew completion-count label, grammatically correct at every count.
+ * Never hardcode "3" — the number always comes from the real count.
+ */
+function completionsLabel(count: number): string {
+  if (count === 0) return "0 השלמות"
+  if (count === 1) return "השלמה אחת"
+  return `${count} השלמות`
+}
+
 export function SentenceCard({
   sentence,
   completed,
@@ -65,57 +70,13 @@ export function SentenceCard({
 
   const hoverCapable = useHoverCapable()
   const cardRef = useRef<HTMLElement>(null)
-  const [previewOpen, setPreviewOpen] = useState(false)
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const openTimer = useRef<number | null>(null)
-  const closeTimer = useRef<number | null>(null)
+  const [open, setOpen] = useState(false)
 
-  const clearTimers = () => {
-    if (openTimer.current) window.clearTimeout(openTimer.current)
-    if (closeTimer.current) window.clearTimeout(closeTimer.current)
-    openTimer.current = null
-    closeTimer.current = null
-  }
-
-  useEffect(() => clearTimers, [])
-
-  // Close the preview if the pointer never returns and the user clicks away.
-  useEffect(() => {
-    if (!previewOpen) return
-    const onDown = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (cardRef.current?.contains(target)) return
-      // The preview is portalled to <body>, so it is not inside the card —
-      // without this, clicking "נסה שוב" inside it would close the preview.
-      if (target.closest?.("[data-completions-preview]")) return
-      setPreviewOpen(false)
-    }
-    document.addEventListener("mousedown", onDown)
-    return () => document.removeEventListener("mousedown", onDown)
-  }, [previewOpen])
-
-  const scheduleOpen = () => {
-    if (!hoverCapable) return
-    clearTimers()
-    openTimer.current = window.setTimeout(
-      () => setPreviewOpen(true),
-      OPEN_DELAY,
-    )
-  }
-
-  const scheduleClose = () => {
-    if (!hoverCapable) return
-    clearTimers()
-    closeTimer.current = window.setTimeout(
-      () => setPreviewOpen(false),
-      CLOSE_DELAY,
-    )
-  }
-
-  const cancelClose = () => {
-    if (closeTimer.current) window.clearTimeout(closeTimer.current)
-    closeTimer.current = null
-  }
+  // The card is a single wide click target; the completions button is a
+  // second, distinct one that opens the popover (desktop) or sheet (mobile).
+  // Neither can be triggered by merely moving the pointer across the card.
+  const openCompletions = () => setOpen(true)
+  const closeCompletions = () => setOpen(false)
 
   return (
     <>
@@ -124,15 +85,6 @@ export function SentenceCard({
         interactive
         ref={cardRef}
         className="flex h-full w-full flex-col"
-        onPointerEnter={scheduleOpen}
-        onPointerLeave={scheduleClose}
-        onClick={(event) => {
-          // The primary action keeps working untouched; only taps on the card
-          // body open the sheet, and only where hover is unavailable.
-          if (hoverCapable) return
-          if ((event.target as HTMLElement).closest("button")) return
-          setSheetOpen(true)
-        }}
       >
         {/* The quote mark keeps its place; the indicator sits opposite it and
             is absent on the overwhelming majority of cards. Thresholds live in
@@ -168,8 +120,11 @@ export function SentenceCard({
           <div className="flex-1" />
         )}
 
-        {/* Action sits at the inline start (right in RTL); the completions
-            count at the inline end. */}
+        {/* Action sits at the inline start (right in RTL): "השלם" is the
+            strongest control on the card. The completions button sits at the
+            inline end — clearly clickable, clearly lighter, never mistaken
+            for the primary CTA. Only an intentional click/tap on it opens
+            anything; nothing here reacts to hover. */}
         <CardFooter className="mt-4 border-t border-border-subtle">
           <Button
             variant="primary"
@@ -180,35 +135,45 @@ export function SentenceCard({
             {label}
           </Button>
 
-          <Badge
-            variant="neutral"
-            iconStart={<Icon src={assets.iconPerson} size="xs" />}
+          <button
+            type="button"
+            data-completions-trigger
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-label={`צפה ב${completionsLabel(sentence.completionsCount)}`}
+            onClick={openCompletions}
+            className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-surface px-3 text-body-sm font-medium text-content-secondary shadow-card transition-colors duration-150 hover:border-border-strong hover:bg-surface-hover hover:text-content-primary active:bg-surface-muted"
           >
-            השלמות {sentence.completionsCount}
-          </Badge>
+            <Icon src={assets.iconPerson} size="xs" />
+            {completionsLabel(sentence.completionsCount)}
+            <Icon
+              src={assets.iconChevronStart}
+              size="xs"
+              className="opacity-70"
+            />
+          </button>
         </CardFooter>
       </Card>
 
-      {previewOpen && cardRef.current ? (
-        <CompletionsPreview
-          sentence={sentence}
-          authorName={authorName}
-          currentUserId={currentUserId}
-          anchor={cardRef.current}
-          onPointerEnter={cancelClose}
-          onPointerLeave={scheduleClose}
-          onLikeChange={() => onLikeChange?.(sentence.id)}
-        />
-      ) : null}
-
-      {sheetOpen ? (
-        <CompletionsSheet
-          sentence={sentence}
-          authorName={authorName}
-          currentUserId={currentUserId}
-          onClose={() => setSheetOpen(false)}
-          onLikeChange={() => onLikeChange?.(sentence.id)}
-        />
+      {open && cardRef.current ? (
+        hoverCapable ? (
+          <CompletionsPreview
+            sentence={sentence}
+            authorName={authorName}
+            currentUserId={currentUserId}
+            anchor={cardRef.current}
+            onClose={closeCompletions}
+            onLikeChange={() => onLikeChange?.(sentence.id)}
+          />
+        ) : (
+          <CompletionsSheet
+            sentence={sentence}
+            authorName={authorName}
+            currentUserId={currentUserId}
+            onClose={closeCompletions}
+            onLikeChange={() => onLikeChange?.(sentence.id)}
+          />
+        )
       ) : null}
     </>
   )

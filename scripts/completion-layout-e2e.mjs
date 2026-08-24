@@ -172,7 +172,9 @@ await page.addInitScript(
 )
 
 await page.goto("http://localhost:4488/", { waitUntil: "networkidle" })
-await page.hover("article")
+// Completions open only on an intentional click of the "X השלמות ›" button —
+// hovering the card does nothing.
+await page.click("[data-completions-trigger]")
 await page.waitForSelector("[data-completions-preview]")
 await page.waitForTimeout(700)
 
@@ -508,7 +510,9 @@ await page.close()
     [ME],
   )
   await m.goto("http://localhost:4488/", { waitUntil: "networkidle" })
-  await m.locator("article").first().click()
+  // Tapping the card body must NOT open the sheet — only the
+  // "X השלמות ›" button does.
+  await m.locator("[data-completions-trigger]").first().click()
   await m.waitForSelector('[aria-label^="השלמות עבור"]')
   await m.waitForTimeout(700)
 

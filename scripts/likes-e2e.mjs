@@ -249,7 +249,7 @@ const browser = await chromium.launch({
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
   const state = await session(page)
   await page.goto("http://localhost:4477/", { waitUntil: "networkidle" })
-  await page.hover("article")
+  await page.click("[data-completions-trigger]")
   await page.waitForSelector("[data-completions-preview]", { timeout: 5000 })
   await page.waitForTimeout(400)
 
@@ -361,7 +361,7 @@ const browser = await chromium.launch({
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
   const state = await session(page, { failNext: 1 })
   await page.goto("http://localhost:4477/", { waitUntil: "networkidle" })
-  await page.hover("article")
+  await page.click("[data-completions-trigger]")
   await page.waitForSelector("[data-completions-preview]")
   await page.waitForTimeout(300)
 
@@ -396,7 +396,7 @@ const browser = await chromium.launch({
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
   await session(page, { seedMine: true })
   await page.goto("http://localhost:4477/", { waitUntil: "networkidle" })
-  await page.hover("article")
+  await page.click("[data-completions-trigger]")
   await page.waitForSelector("[data-completions-preview]")
   await page.waitForTimeout(400)
   const s = await readLike(page)
@@ -419,7 +419,9 @@ const browser = await chromium.launch({
   })
   const state = await session(page)
   await page.goto("http://localhost:4477/", { waitUntil: "networkidle" })
-  await page.locator("article").first().click()
+  // Tapping the card body must NOT open the sheet — only the
+  // "X השלמות ›" button does.
+  await page.locator("[data-completions-trigger]").first().click()
   await page.waitForSelector(SHEET, { timeout: 5000 })
   await page.waitForTimeout(400)
 
@@ -452,7 +454,7 @@ const browser = await chromium.launch({
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
   await session(page)
   await page.goto("http://localhost:4477/", { waitUntil: "networkidle" })
-  await page.hover("article")
+  await page.click("[data-completions-trigger]")
   await page.waitForSelector("[data-completions-preview]")
   await page.waitForTimeout(300)
 
@@ -504,7 +506,7 @@ const browser = await chromium.launch({
     }),
   )
   await page.goto("http://localhost:4477/", { waitUntil: "networkidle" })
-  await page.hover("article")
+  await page.click("[data-completions-trigger]")
   await page.waitForSelector("[data-completions-preview]")
   await page.waitForTimeout(400)
 
