@@ -44,6 +44,8 @@ type PreviewProps = {
   anchor: HTMLElement
   onPointerEnter: () => void
   onPointerLeave: () => void
+  /** Fires once a like write commits, so the card's own preview can refresh. */
+  onLikeChange?: () => void
 }
 
 /**
@@ -57,11 +59,12 @@ export function CompletionsPreview({
   anchor,
   onPointerEnter,
   onPointerLeave,
+  onLikeChange,
 }: PreviewProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const [placement, setPlacement] = useState<Placement | null>(null)
   const { completions, loading, error, retry, likeError, toggleLike } =
-    useCompletions(sentence.id, currentUserId)
+    useCompletions(sentence.id, currentUserId, onLikeChange)
 
   useLayoutEffect(() => {
     const reposition = () => {
@@ -138,6 +141,8 @@ type SheetProps = {
   authorName: string | null
   currentUserId: string | null
   onClose: () => void
+  /** Fires once a like write commits, so the card's own preview can refresh. */
+  onLikeChange?: () => void
 }
 
 /** Mobile bottom sheet: same content, tap-driven, swipe-down to dismiss. */
@@ -146,9 +151,10 @@ export function CompletionsSheet({
   authorName,
   currentUserId,
   onClose,
+  onLikeChange,
 }: SheetProps) {
   const { completions, loading, error, retry, likeError, toggleLike } =
-    useCompletions(sentence.id, currentUserId)
+    useCompletions(sentence.id, currentUserId, onLikeChange)
   const dragStart = useRef<number | null>(null)
   const [dragY, setDragY] = useState(0)
 

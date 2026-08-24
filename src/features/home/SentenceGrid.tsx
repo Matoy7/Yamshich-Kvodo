@@ -2,16 +2,19 @@ import { SentenceCard } from "./SentenceCard"
 import { Card } from "@/components/ui/Card"
 import { EmptyState } from "@/components/ui/EmptyState"
 import type { FeedView, Sentence } from "@/data/sentences"
+import type { LeadingCompletion } from "@/data/completions"
 
 type SentenceGridProps = {
   sentences: Sentence[]
   completedIds: Set<string>
   authorNames: Map<string, string>
+  leadingCompletions: Map<string, LeadingCompletion>
   currentUserId: string
   view: FeedView
   loading: boolean
   error: string | null
   onComplete: (sentence: Sentence) => void
+  onLikeChange: (sentenceId: string) => void
 }
 
 const EMPTY_COPY: Record<FeedView, {
@@ -39,11 +42,13 @@ export function SentenceGrid({
   sentences,
   completedIds,
   authorNames,
+  leadingCompletions,
   currentUserId,
   view,
   loading,
   error,
   onComplete,
+  onLikeChange,
 }: SentenceGridProps) {
   if (loading) {
     return (
@@ -79,8 +84,10 @@ export function SentenceGrid({
             completed={completedIds.has(sentence.id)}
             own={sentence.authorId === currentUserId}
             authorName={authorNames.get(sentence.authorId) ?? null}
+            leadingCompletion={leadingCompletions.get(sentence.id) ?? null}
             currentUserId={currentUserId}
             onComplete={onComplete}
+            onLikeChange={onLikeChange}
           />
         </li>
       ))}

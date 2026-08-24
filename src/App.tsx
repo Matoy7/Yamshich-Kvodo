@@ -67,8 +67,16 @@ export default function App() {
   }, [])
 
   const userId = session?.user.id
-  const { sentences, completedIds, authorNames, loading, error, reload } =
-    useFeed(view, userId)
+  const {
+    sentences,
+    completedIds,
+    authorNames,
+    leadingCompletions,
+    loading,
+    error,
+    reload,
+    refreshLeadingCompletion,
+  } = useFeed(view, userId)
 
   const handleCreateSentence = useCallback(
     async (text: string) => {
@@ -178,11 +186,13 @@ export default function App() {
             sentences={sentences}
             completedIds={completedIds}
             authorNames={authorNames}
+            leadingCompletions={leadingCompletions}
             currentUserId={session.user.id}
             view={view}
             loading={loading}
             error={error}
             onComplete={setCompleting}
+            onLikeChange={refreshLeadingCompletion}
           />
         </Section>
       </DashboardLayout>

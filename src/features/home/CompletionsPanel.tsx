@@ -100,7 +100,8 @@ export function CompletionsPanel({
 
   const count = completions?.length ?? sentence.completionsCount
 
-  // The list arrives newest first; the newest ending is the one promoted.
+  // The list arrives ranked likes DESC, created_at DESC (see
+  // data/completions.ts → rankCompletions); the leading ending is promoted.
   const [main, ...rest] = completions ?? []
   const visibleRest = expanded ? rest : rest.slice(0, SECONDARY_LIMIT)
   const hiddenCount = rest.length - visibleRest.length

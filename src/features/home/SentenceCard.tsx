@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/Icon"
 import { CompletionsPreview, CompletionsSheet } from "./CompletionsPreview"
 import { assets } from "@/lib/assets"
 import type { Sentence } from "@/data/sentences"
+import type { LeadingCompletion } from "@/data/completions"
 
 /** Long enough that skimming the feed never fires a request. */
 const OPEN_DELAY = 200
@@ -18,7 +19,12 @@ type SentenceCardProps = {
   own: boolean
   authorName: string | null
   currentUserId: string
+  /** The completion currently leading by likes (ties → newest), if any. */
+  leadingCompletion?: LeadingCompletion | null
   onComplete: (sentence: Sentence) => void
+  /** Fires once a like commits inside this card's popover/sheet, so the
+   *  feed can refresh which completion leads. */
+  onLikeChange?: (sentenceId: string) => void
 }
 
 /** Hover previews only where hovering is real; tap opens a sheet elsewhere. */
@@ -50,7 +56,9 @@ export function SentenceCard({
   own,
   authorName,
   currentUserId,
+  leadingCompletion,
   onComplete,
+  onLikeChange,
 }: SentenceCardProps) {
   const disabled = completed || own
   const label = completed ? "הושלם" : own ? "שלך" : "השלם"
@@ -141,10 +149,24 @@ export function SentenceCard({
 
         <p
           dir="auto"
-          className="mt-3 flex-1 text-quote font-medium text-content-primary [word-break:break-word]"
+          className="mt-3 text-quote font-medium text-content-primary [word-break:break-word]"
         >
           {sentence.text}...
         </p>
+
+        {/* The current leader by likes — plain text, one muted line, no
+            count and no label. It previews *what* people are completing this
+            with, not a ranking; the popover is where ranking becomes visible. */}
+        {leadingCompletion ? (
+          <p
+            dir="auto"
+            className="mt-2 flex-1 text-body text-content-secondary [word-break:break-word] line-clamp-2"
+          >
+            {leadingCompletion.text}
+          </p>
+        ) : (
+          <div className="flex-1" />
+        )}
 
         {/* Action sits at the inline start (right in RTL); the completions
             count at the inline end. */}
@@ -175,6 +197,7 @@ export function SentenceCard({
           anchor={cardRef.current}
           onPointerEnter={cancelClose}
           onPointerLeave={scheduleClose}
+          onLikeChange={() => onLikeChange?.(sentence.id)}
         />
       ) : null}
 
@@ -184,6 +207,7 @@ export function SentenceCard({
           authorName={authorName}
           currentUserId={currentUserId}
           onClose={() => setSheetOpen(false)}
+          onLikeChange={() => onLikeChange?.(sentence.id)}
         />
       ) : null}
     </>

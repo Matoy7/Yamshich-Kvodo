@@ -90,7 +90,10 @@ type State = {
 export function useCompletions(
   sentenceId: string | null,
   userId: string | null,
-): State {
+  onLikeCommitted?: () => void,
+)/** Fires once a like write actually commits, so a card preview elsewhere
+ *  (ranked by the same likes) can refresh instead of going stale. */
+: State {
   const [completions, setCompletions] = useState<Completion[] | null>(() =>
     sentenceId ? (cache.get(keyFor(sentenceId, userId))?.data ?? null) : null,
   )
@@ -167,14 +170,16 @@ export function useCompletions(
       setLikeError(null)
       apply(next)
 
-      setLiked(completionId, userId, next).catch(() => {
-        // Reconcile to what the server is known to hold. Inverting `next` would
-        // be wrong when the user has since clicked again.
-        apply(lastCommittedLike(completionId) ?? !next)
-        setLikeError(completionId)
-      })
+      setLiked(completionId, userId, next)
+        .then(() => onLikeCommitted?.())
+        .catch(() => {
+          // Reconcile to what the server is known to hold. Inverting `next`
+          // would be wrong when the user has since clicked again.
+          apply(lastCommittedLike(completionId) ?? !next)
+          setLikeError(completionId)
+        })
     },
-    [sentenceId, userId],
+    [sentenceId, userId, onLikeCommitted],
   )
 
   return {

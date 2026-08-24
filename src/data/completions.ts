@@ -78,8 +78,27 @@ export async function fetchAuthors(
 let likesWarned = false
 
 /**
- * Completions for one sentence, newest first, with authors and like state
- * resolved.
+ * Ranks completions the way the whole product does: most-liked first, newest
+ * first to break a tie. Used wherever a list of completions is shown, so the
+ * "leading" completion always means the same thing.
+ *
+ * `likes` is null when like data could not be read at all (see `Completion`);
+ * such completions sort as zero likes rather than being excluded, so the
+ * feature degrading never changes which completion is shown, only whether its
+ * count is visible.
+ */
+export function rankCompletions(completions: Completion[]): Completion[] {
+  return [...completions].sort((a, b) => {
+    const likesA = a.likes?.count ?? 0
+    const likesB = b.likes?.count ?? 0
+    if (likesA !== likesB) return likesB - likesA
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  })
+}
+
+/**
+ * Completions for one sentence, ranked most-liked first (ties broken by
+ * newest), with authors and like state resolved.
  *
  * Three requests for the whole list regardless of how many completions come
  * back — the rows, one batched author lookup, one batched like lookup. Authors
@@ -119,7 +138,7 @@ export async function fetchCompletions(
     }),
   ])
 
-  return rows.map((row) => {
+  const mapped = rows.map((row) => {
     const author = authors.get(row.author_id)
     const like = likes?.get(row.id) ?? null
     if (like) seedLikeState(row.id, like.likedByMe)
@@ -136,4 +155,69 @@ export async function fetchCompletions(
       likes: like,
     }
   })
+
+  return rankCompletions(mapped)
+}
+
+/** The single most-liked completion for a batch of sentences (ties → newest). */
+export type LeadingCompletion = {
+  id: string
+  text: string
+}
+
+/**
+ * One completion per sentence — whichever currently leads by
+ * `likes DESC, created_at DESC` — for the feed's card preview.
+ *
+ * One batched query for every sentence's completions plus one batched like
+ * lookup, regardless of how many cards are on screen. Decorative like
+ * everything else attribution-shaped here: any failure resolves to an empty
+ * map so the feed still renders, just without previews.
+ */
+export async function fetchLeadingCompletions(
+  sentenceIds: string[],
+): Promise<Map<string, LeadingCompletion>> {
+  const unique = [...new Set(sentenceIds)].filter(Boolean)
+  const result = new Map<string, LeadingCompletion>()
+  if (unique.length === 0) return result
+
+  const { data, error } = await supabase
+    .from("completions")
+    .select("id, text, created_at, sentence_id")
+    .in("sentence_id", unique)
+
+  if (error) return result
+
+  type Row = {
+    id: string
+    text: string
+    created_at: string
+    sentence_id: string
+  }
+  const rows = (data ?? []) as Row[]
+  if (rows.length === 0) return result
+
+  const likes = await fetchLikes(
+    rows.map((row) => row.id),
+    null,
+  ).catch(() => null)
+
+  const bySentence = new Map<string, Row[]>()
+  for (const row of rows) {
+    const list = bySentence.get(row.sentence_id)
+    if (list) list.push(row)
+    else bySentence.set(row.sentence_id, [row])
+  }
+
+  for (const [sentenceId, list] of bySentence) {
+    const [top] = [...list].sort((a, b) => {
+      const likesA = likes?.get(a.id)?.count ?? 0
+      const likesB = likes?.get(b.id)?.count ?? 0
+      if (likesA !== likesB) return likesB - likesA
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+    if (top) result.set(sentenceId, { id: top.id, text: top.text })
+  }
+
+  return result
 }
