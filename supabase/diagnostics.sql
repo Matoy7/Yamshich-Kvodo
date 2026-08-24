@@ -35,3 +35,19 @@ select event_object_schema as on_schema,
        trigger_name
 from information_schema.triggers
 where trigger_name in ('on_auth_user_created','profiles_touch_updated_at');
+
+-- 7) Every user who has ever connected — guest or signed in with Google.
+-- Reads auth.users, so this only works here in the SQL Editor, never from
+-- the app itself (no RLS/public API exposes that table). Read-only.
+select
+  u.id,
+  u.email,                                                  -- null for guests
+  coalesce(p.display_name, p.first_name, 'ללא שם')  as name,
+  case when u.is_anonymous then 'guest' else 'google' end   as account_type,
+  u.created_at        as first_connected_at,
+  u.last_sign_in_at,
+  (select count(*) from public.sentences   s where s.author_id = u.id) as sentences_started,
+  (select count(*) from public.completions c where c.author_id = u.id) as completions_written
+from auth.users u
+left join public.profiles p on p.id = u.id
+order by u.created_at desc;

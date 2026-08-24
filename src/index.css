@@ -130,6 +130,13 @@
   .animate-like-pop {
     animation: like-pop 220ms cubic-bezier(0.34, 1.35, 0.64, 1);
   }
+
+  /* Small fade + settle for the notifications popover — not a slide from
+     off-screen, just enough motion to read as "opened" rather than
+     "appeared". Neutralised by the reduced-motion block below. */
+  .animate-notifications-in {
+    animation: notifications-in 180ms ease-out;
+  }
 }
 
 @keyframes like-pop {
@@ -141,6 +148,17 @@
   }
   100% {
     transform: scale(1);
+  }
+}
+
+@keyframes notifications-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

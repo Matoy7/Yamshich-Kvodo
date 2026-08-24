@@ -26,6 +26,10 @@ export const assets = {
   iconHeartFilled: `${base}/heart-filled.svg`,
   iconChevronStart: `${base}/chevron-start.svg`,
   /** Project-authored to match the stroke-icon language above (24px grid,
+   *  same weight and colour as the heart icons). Vertically symmetric —
+   *  needs no RTL mirroring. */
+  iconShare: `${base}/share.svg`,
+  /** Project-authored to match the stroke-icon language above (24px grid,
    *  same weight and colour as the heart icons), since search predates a
    *  dedicated icon in the Figma Make export. */
   iconSearch: `${base}/search.svg`,
@@ -35,6 +39,9 @@ export const assets = {
    *  isn't muted grey, since it marks a distinct status rather than a
    *  neutral action. */
   iconCrown: `${base}/crown-status.svg`,
+  /** Project-authored to match the stroke-icon language above (24px grid,
+   *  same weight and colour as the heart icons), for the "העתק קישור" row. */
+  iconLink: `${base}/link.svg`,
 } as const
 
 export type AssetKey = keyof typeof assets

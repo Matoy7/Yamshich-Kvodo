@@ -39,6 +39,53 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://matoy7.github.io/Yamshich-Kvodo/og-image.jpg" />
     <!-- figma:head-end -->
+
+    <script>
+      // Single-Page Apps for GitHub Pages — companion to public/404.html.
+      //
+      // Two things happen here, in order, and the order matters:
+      //
+      // 1. A <base> tag is inserted, pinned to this page's own root
+      //    (computed from location.pathname *before* anything below touches
+      //    it — never hardcoded, so this still works under any repo name).
+      //    Without it, the module script tag at the bottom of <body> — whose
+      //    fetch Chromium's preload scanner starts speculatively against the
+      //    *original* URL, but which the parser also resolves "for real"
+      //    against whatever the *current* URL is once it reaches that tag —
+      //    ends up fetched twice: once correctly, once resolved against the
+      //    deep link path below, 404ing every asset on it. <base> fixes the
+      //    resolution target for every relative URL in the document, so it
+      //    stays correct no matter what step 2 does to the visible URL.
+      //
+      // 2. The real deep-link URL (e.g. /sentence/<id>/completion/<id>) that
+      //    404.html encoded into a query string is restored via
+      //    history.replaceState — which does not trigger a navigation or
+      //    reload — before the app below reads window.location.pathname.
+      //
+      // Both run as plain synchronous scripts, so both always execute before
+      // the deferred module script that follows. A normal visit (no "?/"
+      // query shape) leaves the page untouched either way.
+      ;(function (l) {
+        var base = document.createElement("base")
+        base.href = l.pathname.split("?")[0].replace(/[^/]*$/, "")
+        document.head.appendChild(base)
+
+        if (l.search[1] === "/") {
+          var decoded = l.search
+            .slice(1)
+            .split("&")
+            .map(function (s) {
+              return s.replace(/~and~/g, "&")
+            })
+            .join("?")
+          window.history.replaceState(
+            null,
+            "",
+            l.pathname.slice(0, -1) + decoded + l.hash,
+          )
+        }
+      })(window.location)
+    </script>
   </head>
   <body>
     <!-- figma:body-start -->

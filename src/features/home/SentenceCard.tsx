@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
 import { Icon } from "@/components/ui/Icon"
 import { CompletionsPreview, CompletionsSheet } from "./CompletionsPreview"
+import { ShareButton } from "./ShareButton"
 import { assets } from "@/lib/assets"
 import { relativeTime } from "@/lib/time"
 import type { Sentence } from "@/data/sentences"
@@ -137,20 +138,32 @@ export function SentenceCard({
           <div className="flex-1" />
         )}
 
-        {/* Action sits at the inline start (right in RTL): "השלם" is the
-            strongest control on the card. The completions button sits at the
-            inline end — clearly clickable, clearly lighter, never mistaken
-            for the primary CTA. Only an intentional click/tap on it opens
-            anything; nothing here reacts to hover. */}
+        {/* Two groups, pushed to opposite ends by CardFooter's
+            justify-between: "השלם" (primary) grouped with "שתף" (secondary,
+            visually lighter, sharing the leading completion shown above) at
+            the inline start; the completions trigger alone at the inline
+            end. Only an intentional click/tap on any of them does anything —
+            nothing here reacts to hover. */}
         <CardFooter className="mt-4 border-t border-border-subtle">
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={disabled}
-            onClick={() => onComplete(sentence)}
-          >
-            {label}
-          </Button>
+          <div className="flex min-w-0 items-center gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={disabled}
+              onClick={() => onComplete(sentence)}
+            >
+              {label}
+            </Button>
+
+            {leadingCompletion ? (
+              <ShareButton
+                sentenceText={sentence.text}
+                sentenceId={sentence.id}
+                completionId={leadingCompletion.id}
+                completionText={leadingCompletion.text}
+              />
+            ) : null}
+          </div>
 
           <button
             type="button"

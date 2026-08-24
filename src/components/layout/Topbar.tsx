@@ -1,5 +1,5 @@
-import { Icon } from "@/components/ui/Icon"
 import { IconButton } from "@/components/ui/IconButton"
+import { NotificationsBell } from "@/features/notifications/NotificationsBell"
 import { AccountMenu } from "@/features/auth/AccountMenu"
 import { assets } from "@/lib/assets"
 
@@ -10,10 +10,12 @@ type TopbarProps = {
   avatarUrl: string
   displayName: string
   isGuest: boolean
-  hasNotifications?: boolean
+  userId: string | undefined
   onOpenNav: () => void
   onLinkGoogle: () => void
   onSignOut: () => void
+  /** Opens the relevant sentence's completions context from a notification. */
+  onOpenNotification: (sentenceId: string) => void
 }
 
 /**
@@ -26,10 +28,11 @@ export function Topbar({
   avatarUrl,
   displayName,
   isGuest,
-  hasNotifications = false,
+  userId,
   onOpenNav,
   onLinkGoogle,
   onSignOut,
+  onOpenNotification,
 }: TopbarProps) {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-bg/85 backdrop-blur-sm">
@@ -70,16 +73,10 @@ export function Topbar({
 
         {/* Account controls — `ms-auto` pushes them to the inline end. */}
         <div className="ms-auto flex shrink-0 items-center gap-2 sm:gap-3">
-          <IconButton
-            label={hasNotifications ? "התראות, יש התראות חדשות" : "התראות"}
-            variant="secondary"
-            size="md"
-          >
-            <Icon src={assets.iconBell} size="md" />
-            {hasNotifications ? (
-              <span className="absolute -top-0.5 -start-0.5 size-3 rounded-full border-2 border-surface bg-primary" />
-            ) : null}
-          </IconButton>
+          <NotificationsBell
+            userId={userId}
+            onOpenSentence={onOpenNotification}
+          />
 
           <AccountMenu
             displayName={displayName}

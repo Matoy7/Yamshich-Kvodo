@@ -26,7 +26,7 @@ type CompletionRow = {
   created_at: string
   author_id: string
 }
-type AuthorRow = {
+export type AuthorRow = {
   id: string
   display_name: string | null
   first_name: string | null
@@ -34,7 +34,7 @@ type AuthorRow = {
 }
 
 /** Guest names live in display_name; provider users have first_name. */
-function authorName(row: AuthorRow | undefined): string {
+export function authorName(row: AuthorRow | undefined): string {
   return row?.display_name?.trim() || row?.first_name?.trim() || "משתמש"
 }
 
@@ -76,6 +76,51 @@ export async function fetchAuthors(
 }
 
 let likesWarned = false
+
+/**
+ * One completion by id, with its author and current like count — for a
+ * shared/deep-link view, which must show the exact completion someone
+ * shared regardless of whether it still leads its sentence today.
+ *
+ * Same field shape as fetchCompletions's per-row mapping, just for a single
+ * row, and it seeds this session's like state the same way.
+ */
+export async function fetchCompletionById(
+  id: string,
+  userId: string | null,
+): Promise<Completion | null> {
+  const { data, error } = await supabase
+    .from("completions")
+    .select("id, text, created_at, author_id")
+    .eq("id", id)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) return null
+
+  const row = data as CompletionRow
+
+  const [authors, likes] = await Promise.all([
+    fetchAuthors([row.author_id]),
+    fetchLikes([row.id], userId).catch(() => null),
+  ])
+
+  const author = authors.get(row.author_id)
+  const like = likes?.get(row.id) ?? null
+  if (like) seedLikeState(row.id, like.likedByMe)
+
+  return {
+    id: row.id,
+    text: row.text,
+    createdAt: row.created_at,
+    author: {
+      id: row.author_id,
+      name: authorName(author),
+      avatarUrl: author?.avatar_url?.trim() || null,
+    },
+    likes: like,
+  }
+}
 
 /**
  * Ranks completions the way the whole product does: most-liked first, newest

@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { DashboardLayout } from "@/components/layout/DashboardLayout"
 import { Section } from "@/components/layout/Section"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { HeroBanner } from "@/features/home/HeroBanner"
 import { SentenceGrid } from "@/features/home/SentenceGrid"
 import { CompletionDialog } from "@/features/home/CompletionDialog"
+import { CompletionsSheet } from "@/features/home/CompletionsPreview"
+import { SharedCompletionView } from "@/features/home/SharedCompletionView"
 import { useFeed } from "@/features/home/useFeed"
 import { useSentenceSearch } from "@/features/home/useSearch"
 import { useNavCounts } from "@/features/home/useNavCounts"
@@ -27,11 +29,14 @@ import { navItems } from "@/data/navigation"
 import {
   createCompletion,
   createSentence,
+  fetchSentenceById,
   type FeedView,
   type Sentence,
 } from "@/data/sentences"
+import { fetchAuthors } from "@/data/completions"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 import { assets } from "@/lib/assets"
+import { parseDeepLink } from "@/lib/deepLink"
 
 const PRODUCT_NAME = "ימשיך כבודו"
 const TAGLINE = "אתה מתחיל. האינטרנט משלים."
@@ -45,6 +50,26 @@ export default function App() {
   const [completing, setCompleting] = useState<Sentence | null>(null)
   const [linkResult, setLinkResult] = useState<LinkResult | null>(null)
   const [confirmGuestSignOut, setConfirmGuestSignOut] = useState(false)
+  const [notified, setNotified] = useState<{
+    sentence: Sentence
+    authorName: string | null
+  } | null>(null)
+  // Read once: a shared link is only ever opened by navigating to it (or
+  // refreshing it), never produced by anything that happens after mount.
+  const [deepLink, setDeepLink] = useState(() => parseDeepLink())
+
+  // A shared link must open without forcing sign-in. This provisions the
+  // same guest identity the "המשך כאורח" button on LoginScreen creates —
+  // automatically and invisibly, so a fresh visitor never sees a login
+  // screen at all for this one entry point. Runs once; the session it
+  // creates flows back through useSession's own auth-state listener.
+  const guestProvisionAttempted = useRef(false)
+  useEffect(() => {
+    if (!deepLink || sessionLoading || session) return
+    if (guestProvisionAttempted.current) return
+    guestProvisionAttempted.current = true
+    void supabase.auth.signInAnonymously()
+  }, [deepLink, sessionLoading, session])
 
   // Provider picture when there is one; otherwise the deterministic generated
   // avatar, loaded lazily so it never weighs down the first paint.
@@ -122,6 +147,24 @@ export default function App() {
     [userId, reload, refreshNavCounts],
   )
 
+  /**
+   * A notification points at a sentence that may not be in whichever feed
+   * tab is currently loaded — it's fetched fresh, then opened the same way
+   * "X השלמות ›" opens any other sentence: the existing completions sheet,
+   * never a separate notification-specific UI or page.
+   */
+  const handleOpenNotification = useCallback(async (sentenceId: string) => {
+    const sentence = await fetchSentenceById(sentenceId).catch(() => null)
+    if (!sentence) return
+    const authors = await fetchAuthors([sentence.authorId]).catch(
+      () => new Map(),
+    )
+    const author = authors.get(sentence.authorId)
+    const name =
+      author?.display_name?.trim() || author?.first_name?.trim() || null
+    setNotified({ sentence, authorName: name })
+  }, [])
+
   if (!isSupabaseConfigured) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg px-4">
@@ -157,6 +200,28 @@ export default function App() {
   }
 
   if (!session) {
+    // A pending shared-link visit: the guest session above is still being
+    // created. Never show the login screen for this — by design, viewing a
+    // shared link requires no sign-in step the visitor can see at all.
+    if (deepLink) {
+      return (
+        <main
+          aria-busy="true"
+          className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg px-4"
+        >
+          <img
+            src={assets.heroIllustration}
+            alt=""
+            aria-hidden
+            width={96}
+            height={96}
+            className="size-24 animate-pulse rounded-full bg-surface-secondary object-cover"
+          />
+          <p className="text-body text-content-secondary">טוען…</p>
+        </main>
+      )
+    }
+
     return (
       <LoginScreen
         brandName={PRODUCT_NAME}
@@ -185,9 +250,10 @@ export default function App() {
         userName={userName}
         avatarUrl={avatarUrl}
         canUpgrade={canUpgradeAccount(session.user)}
-        hasNotifications
+        userId={userId}
         onSelectNav={(id) => setView(id as FeedView)}
         onUpgrade={startAccountLink}
+        onOpenNotification={handleOpenNotification}
         onSignOut={() => {
           // A guest's identity lives only in this browser's session. Signing
           // out discards it, and with it the way back to their sentences —
@@ -203,28 +269,38 @@ export default function App() {
           onStart={handleCreateSentence}
         />
 
-        {/* Labelled only on the ranked feed — "what's happening now" would be
-            a lie above a personal, chronological list. */}
-        <Section
-          title={view === "home" ? "מה קורה עכשיו?" : undefined}
-          description={
-            view === "home" ? "המשפטים שאנשים משלימים ממש עכשיו" : undefined
-          }
-        >
-          <SentenceGrid
-            sentences={visibleSentences}
-            completedIds={completedIds}
-            authorNames={authorNames}
-            leadingCompletions={leadingCompletions}
-            currentUserId={session.user.id}
-            view={view}
-            loading={gridLoading}
-            error={gridError}
-            searchQuery={search.query}
+        {deepLink ? (
+          <SharedCompletionView
+            sentenceId={deepLink.sentenceId}
+            completionId={deepLink.completionId}
+            currentUserId={userId ?? null}
             onComplete={setCompleting}
-            onLikeChange={refreshLeadingCompletion}
+            onLeave={() => setDeepLink(null)}
           />
-        </Section>
+        ) : (
+          /* Labelled only on the ranked feed — "what's happening now" would
+             be a lie above a personal, chronological list. */
+          <Section
+            title={view === "home" ? "מה קורה עכשיו?" : undefined}
+            description={
+              view === "home" ? "המשפטים שאנשים משלימים ממש עכשיו" : undefined
+            }
+          >
+            <SentenceGrid
+              sentences={visibleSentences}
+              completedIds={completedIds}
+              authorNames={authorNames}
+              leadingCompletions={leadingCompletions}
+              currentUserId={session.user.id}
+              view={view}
+              loading={gridLoading}
+              error={gridError}
+              searchQuery={search.query}
+              onComplete={setCompleting}
+              onLikeChange={refreshLeadingCompletion}
+            />
+          </Section>
+        )}
       </DashboardLayout>
 
       <CompletionDialog
@@ -232,6 +308,15 @@ export default function App() {
         onClose={() => setCompleting(null)}
         onSubmit={handleCreateCompletion}
       />
+
+      {notified ? (
+        <CompletionsSheet
+          sentence={notified.sentence}
+          authorName={notified.authorName}
+          currentUserId={session.user.id}
+          onClose={() => setNotified(null)}
+        />
+      ) : null}
 
       <Modal
         open={confirmGuestSignOut}

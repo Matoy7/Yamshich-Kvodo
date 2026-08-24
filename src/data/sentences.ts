@@ -229,6 +229,34 @@ async function fetchCompletedFeed(userId: string): Promise<Sentence[]> {
     .filter((row): row is Sentence => Boolean(row))
 }
 
+/**
+ * One sentence by id, for opening a completions popover from a notification
+ * — the sentence it points at may not be in whichever feed tab is currently
+ * loaded. Same view-with-fallback shape as every other read in this file.
+ */
+export async function fetchSentenceById(id: string): Promise<Sentence | null> {
+  const { data, error } = await supabase
+    .from("sentence_metrics")
+    .select(METRICS_SELECT)
+    .eq("id", id)
+    .maybeSingle()
+
+  if (error) {
+    warnOnce(error)
+    const fallback = await supabase
+      .from("sentences")
+      .select(SENTENCE_SELECT)
+      .eq("id", id)
+      .maybeSingle()
+    if (fallback.error) throw fallback.error
+    return fallback.data
+      ? toSentence(fallback.data as unknown as SentenceRow)
+      : null
+  }
+
+  return data ? fromMetrics(data as unknown as MetricsRow) : null
+}
+
 /** Ids of sentences this user has already completed. */
 export async function fetchCompletedIds(userId: string): Promise<Set<string>> {
   const { data, error } = await supabase
