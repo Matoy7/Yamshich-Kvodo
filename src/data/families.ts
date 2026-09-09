@@ -170,6 +170,15 @@ export async function fetchFamilyInvitations(familyId: string): Promise<Invitati
   }))
 }
 
+/** Renames a family. Owner-only, per the UPDATE policy in 2026-09-shem-tov-phase2.sql. */
+export async function renameFamily(familyId: string, name: string): Promise<void> {
+  const { error } = await supabase
+    .from("families")
+    .update({ name: name.trim() })
+    .eq("id", familyId)
+  if (error) throw error
+}
+
 export async function revokeInvitation(invitationId: string): Promise<void> {
   const { error } = await supabase.rpc("revoke_invitation", { p_invitation_id: invitationId })
   if (error) throw error

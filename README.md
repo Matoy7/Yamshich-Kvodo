@@ -1,8 +1,8 @@
-# המשלים שלי
+# שם טוב
 
-A Hebrew RTL sentence-completion social web app. This is the Home Page implementation, generated with Figma Make and prepared here for deployment as a static site on GitHub Pages.
+A Hebrew RTL family baby-name voting app. Families browse a shared name catalogue, suggest their own names, and vote — each family's votes and rankings are private to that family, and the same person's vote in one family is independent from their vote in any other family they belong to.
 
-The stack is React 19 + Vite + Tailwind CSS v4 — the exact stack produced by Figma Make. The UI, layout, styling, and assets are unchanged from the Figma Make output; only the minimum configuration needed for GitHub Pages hosting was added (see "What was changed for deployment" below).
+Originally generated with Figma Make as "המשלים שלי" (a sentence-completion app) and since transformed into this product. The design system, component architecture, authentication and Supabase infrastructure are carried over deliberately; the product itself — data model, screens and interactions — is new.
 
 ## Requirements
 
@@ -99,6 +99,13 @@ idempotent, so re-running is safe. It creates `profiles`, `sentences` and
 `completions`, a trigger that creates a profile on signup, and Row Level
 Security policies (everything readable by signed-in users; rows writable only
 by their owner).
+
+**שם טוב schema — run these two next, in order, both idempotent and safe to re-run:**
+
+1. `supabase/2026-09-shem-tov-families.sql` — families, membership,
+   invitations, names, votes, and the family-scoped ranking view.
+2. `supabase/2026-09-shem-tov-phase2.sql` — family rename support and
+   name-vote notifications. Depends on the first file.
 
 ### 2. Google sign-in
 

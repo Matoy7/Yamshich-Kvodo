@@ -20,8 +20,8 @@ type DashboardLayoutProps = {
   onSelectNav: (id: string) => void
   onUpgrade?: () => void
   onSignOut: () => void
-  /** Opens the relevant sentence's completions context from a notification. */
-  onOpenNotification: (sentenceId: string) => void
+  /** Switches to the family a notification belongs to. */
+  onOpenNotification: (familyId: string) => void
   children: ReactNode
 }
 

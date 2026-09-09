@@ -86,6 +86,45 @@ export async function deleteSuggestion(nameId: string): Promise<void> {
   if (error) throw error
 }
 
+/**
+ * "Based on what your family already voted for": looks at the gender(s) of
+ * names the family has voted for, then suggests other shared-catalogue
+ * names of the same gender(s) they haven't voted for yet. Deliberately
+ * simple and explainable — no black-box scoring, nothing invented, just
+ * "more of what you already leaned toward."
+ */
+export async function fetchRecommendations(familyId: string, limit = 6): Promise<NameEntry[]> {
+  const { data: votedRows, error: votedErr } = await supabase
+    .from("name_votes")
+    .select("name_id")
+    .eq("family_id", familyId)
+  if (votedErr) throw votedErr
+
+  const votedIds = [...new Set((votedRows as { name_id: string }[]).map((r) => r.name_id))]
+  if (votedIds.length === 0) return []
+
+  const { data: votedNames, error: namesErr } = await supabase
+    .from("names")
+    .select("id, gender")
+    .in("id", votedIds)
+  if (namesErr) throw namesErr
+
+  const genders = [
+    ...new Set((votedNames as { id: string; gender: Gender | null }[]).map((n) => n.gender).filter(Boolean)),
+  ] as Gender[]
+  if (genders.length === 0) return []
+
+  const { data, error } = await supabase
+    .from("names")
+    .select("id, text, gender, origin, family_id, suggested_by, created_at")
+    .is("family_id", null)
+    .in("gender", genders)
+    .not("id", "in", `(${votedIds.join(",")})`)
+    .limit(limit)
+  if (error) throw error
+  return (data as NameRow[]).map(fromRow)
+}
+
 export type RankedName = {
   nameId: string
   text: string

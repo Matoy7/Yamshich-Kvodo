@@ -3,6 +3,7 @@ import { Card, CardHeader } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
 import { Avatar } from "@/components/ui/Avatar"
+import { Input } from "@/components/ui/Input"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Section } from "@/components/layout/Section"
 import { useGeneratedAvatars } from "@/lib/avatar"
@@ -13,6 +14,7 @@ import {
   createInvitation,
   revokeInvitation,
   removeFamilyMember,
+  renameFamily,
   type Family,
   type FamilyMemberProfile,
   type Invitation,
@@ -21,9 +23,10 @@ import {
 type MyFamilyScreenProps = {
   family: Family
   currentUserId: string
+  onRenamed?: () => void
 }
 
-export function MyFamilyScreen({ family, currentUserId }: MyFamilyScreenProps) {
+export function MyFamilyScreen({ family, currentUserId, onRenamed }: MyFamilyScreenProps) {
   const [roster, setRoster] = useState<FamilyMemberProfile[]>([])
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,6 +34,9 @@ export function MyFamilyScreen({ family, currentUserId }: MyFamilyScreenProps) {
   const [freshLink, setFreshLink] = useState<string | null>(null)
   const [creatingInvite, setCreatingInvite] = useState(false)
   const [nonce, setNonce] = useState(0)
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState(family.name)
+  const [renaming, setRenaming] = useState(false)
 
   const isOwner = family.role === "owner"
   const avatars = useGeneratedAvatars(roster.map((m) => m.userId))
@@ -82,6 +88,24 @@ export function MyFamilyScreen({ family, currentUserId }: MyFamilyScreenProps) {
     reload()
   }
 
+  async function handleRename() {
+    const trimmed = nameDraft.trim()
+    if (!trimmed || trimmed === family.name) {
+      setEditingName(false)
+      return
+    }
+    setRenaming(true)
+    try {
+      await renameFamily(family.id, trimmed)
+      onRenamed?.()
+      setEditingName(false)
+    } catch {
+      setError("לא הצלחנו לשנות את השם. נסו שוב.")
+    } finally {
+      setRenaming(false)
+    }
+  }
+
   async function handleRemove(userId: string) {
     await removeFamilyMember(family.id, userId).catch(() => {})
     reload()
@@ -101,6 +125,44 @@ export function MyFamilyScreen({ family, currentUserId }: MyFamilyScreenProps) {
 
   return (
     <div className="flex flex-col gap-8">
+      {isOwner ? (
+        <Section title="שם המשפחה">
+          <Card padding="md">
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  inputSize="md"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  containerClassName="flex-1"
+                  autoFocus
+                />
+                <Button variant="primary" size="sm" onClick={handleRename} disabled={renaming || !nameDraft.trim()}>
+                  {renaming ? "שומר…" : "שמירה"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setNameDraft(family.name)
+                    setEditingName(false)
+                  }}
+                >
+                  ביטול
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-card-title font-semibold text-content-primary">{family.name}</p>
+                <Button variant="ghost" size="sm" onClick={() => setEditingName(true)}>
+                  שינוי שם
+                </Button>
+              </div>
+            )}
+          </Card>
+        </Section>
+      ) : null}
+
       <Section title="בני המשפחה" description={`${roster.length} חברים ב${family.name}`}>
         <Card padding="md">
           <ul className="flex flex-col divide-y divide-border-subtle">

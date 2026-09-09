@@ -25,8 +25,10 @@ import { useFamilyNames } from "@/features/names/useFamilyNames"
 import { FamilySwitcher } from "@/features/names/FamilySwitcher"
 import { SuggestNameForm } from "@/features/names/SuggestNameForm"
 import { NameGrid, type NameGridView } from "@/features/names/NameGrid"
+import { NameFiltersBar } from "@/features/names/NameFiltersBar"
+import { RecommendedNames } from "@/features/names/RecommendedNames"
 import { MyFamilyScreen } from "@/features/names/MyFamilyScreen"
-import { suggestName } from "@/data/names"
+import { suggestName, type Gender } from "@/data/names"
 import { redeemInvitation } from "@/data/families"
 
 const PRODUCT_NAME = "שם טוב"
@@ -45,6 +47,8 @@ export default function App() {
   const { session, loading: sessionLoading, displayName } = useSession()
   const [view, setView] = useState<View>("browse")
   const [searchQuery, setSearchQuery] = useState("")
+  const [genderFilter, setGenderFilter] = useState<Gender | undefined>(undefined)
+  const [initialFilter, setInitialFilter] = useState<string | undefined>(undefined)
   const [linkResult, setLinkResult] = useState<LinkResult | null>(null)
   const [confirmGuestSignOut, setConfirmGuestSignOut] = useState(false)
 
@@ -74,6 +78,7 @@ export default function App() {
     activeFamily,
     loading: familiesLoading,
     error: familiesError,
+    reload: reloadFamilies,
     setActiveFamilyId,
     create: handleCreateFamily,
   } = useMyFamilies(userId)
@@ -86,7 +91,11 @@ export default function App() {
     error: namesError,
     reload: reloadNames,
     toggleVote,
-  } = useFamilyNames(activeFamilyId, userId, gridView, { search: searchQuery || undefined })
+  } = useFamilyNames(activeFamilyId, userId, gridView, {
+    search: searchQuery || undefined,
+    gender: genderFilter,
+    initial: initialFilter,
+  })
 
   const handleJoinFamily = useCallback(
     async (token: string) => {
@@ -172,10 +181,10 @@ export default function App() {
         userId={userId}
         onSelectNav={(id) => setView(id as View)}
         onUpgrade={startAccountLink}
-        // Notifications were built around the sentence-completion feed
-        // (likes, completions). They are not part of this pass — opening
-        // one is a deliberate no-op rather than a broken deep link.
-        onOpenNotification={() => {}}
+        onOpenNotification={(familyId) => {
+          setActiveFamilyId(familyId)
+          setView("ranking")
+        }}
         onSignOut={() => {
           if (canUpgradeAccount(session.user)) setConfirmGuestSignOut(true)
           else void supabase.auth.signOut()
@@ -213,16 +222,22 @@ export default function App() {
             </Section>
 
             {view === "family" && activeFamily ? (
-              <MyFamilyScreen family={activeFamily} currentUserId={session.user.id} />
+              <MyFamilyScreen family={activeFamily} currentUserId={session.user.id} onRenamed={reloadFamilies} />
             ) : (
               <>
                 {view === "browse" ? (
-                  <Section
-                    title="הציעו שם למשפחה"
-                    description="השם יופיע רק אצל בני המשפחה שלכם, ואפשר להצביע עליו כמו על כל שם אחר."
-                  >
-                    <SuggestNameForm onSubmit={handleSuggestName} />
-                  </Section>
+                  <>
+                    <Section
+                      title="הציעו שם למשפחה"
+                      description="השם יופיע רק אצל בני המשפחה שלכם, ואפשר להצביע עליו כמו על כל שם אחר."
+                    >
+                      <SuggestNameForm onSubmit={handleSuggestName} />
+                    </Section>
+
+                    {activeFamilyId && userId ? (
+                      <RecommendedNames familyId={activeFamilyId} userId={userId} refreshKey={votes.size} />
+                    ) : null}
+                  </>
                 ) : null}
 
                 <Section
@@ -231,6 +246,16 @@ export default function App() {
                     view === "ranking"
                       ? "מדורג לפי מספר המצביעים השונים, ובשוויון — לפי ההצבעה האחרונה."
                       : "הקטלוג המשותף, יחד עם השמות שהמשפחה שלכם הציעה."
+                  }
+                  actions={
+                    view === "browse" ? (
+                      <NameFiltersBar
+                        gender={genderFilter}
+                        initial={initialFilter}
+                        onChangeGender={setGenderFilter}
+                        onChangeInitial={setInitialFilter}
+                      />
+                    ) : undefined
                   }
                 >
                   <NameGrid

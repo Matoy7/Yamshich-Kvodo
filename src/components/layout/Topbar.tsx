@@ -1,5 +1,5 @@
 import { IconButton } from "@/components/ui/IconButton"
-import { NotificationsBell } from "@/features/notifications/NotificationsBell"
+import { NameNotificationsBell } from "@/features/names/NameNotificationsBell"
 import { AccountMenu } from "@/features/auth/AccountMenu"
 import { assets } from "@/lib/assets"
 
@@ -14,8 +14,8 @@ type TopbarProps = {
   onOpenNav: () => void
   onLinkGoogle: () => void
   onSignOut: () => void
-  /** Opens the relevant sentence's completions context from a notification. */
-  onOpenNotification: (sentenceId: string) => void
+  /** Switches to the family a notification belongs to. */
+  onOpenNotification: (familyId: string) => void
 }
 
 /**
@@ -73,9 +73,9 @@ export function Topbar({
 
         {/* Account controls — `ms-auto` pushes them to the inline end. */}
         <div className="ms-auto flex shrink-0 items-center gap-2 sm:gap-3">
-          <NotificationsBell
+          <NameNotificationsBell
             userId={userId}
-            onOpenSentence={onOpenNotification}
+            onOpenFamily={onOpenNotification}
           />
 
           <AccountMenu
