@@ -66,15 +66,17 @@ export async function fetchNames(familyId: string, filters: NameFilters = {}): P
 }
 
 /** Suggests a new name, private to one family. */
+/** Suggests a new name, private to one family. */
 export async function suggestName(
   familyId: string,
   text: string,
   gender: Gender | null,
   origin: string | null,
+  suggestedBy: string,
 ): Promise<NameEntry> {
   const { data, error } = await supabase
     .from("names")
-    .insert({ family_id: familyId, text: text.trim(), gender, origin })
+    .insert({ family_id: familyId, text: text.trim(), gender, origin, suggested_by: suggestedBy })
     .select("id, text, gender, origin, family_id, suggested_by, created_at")
     .single()
   if (error) throw error

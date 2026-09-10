@@ -50,11 +50,11 @@ export async function fetchMyFamilies(userId: string): Promise<Family[]> {
 }
 
 /** Creates a family. The creator becomes its owner via the on_family_created trigger. */
-export async function createFamily(name: string): Promise<Family> {
+export async function createFamily(name: string, createdBy: string): Promise<Family> {
   const trimmed = name.trim()
   const { data, error } = await supabase
     .from("families")
-    .insert({ name: trimmed })
+    .insert({ name: trimmed, created_by: createdBy })
     .select("id, name, created_by, created_at")
     .single()
   if (error) throw error

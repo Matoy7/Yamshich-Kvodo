@@ -112,11 +112,11 @@ export default function App() {
 
   const handleSuggestName = useCallback(
     async (text: string, gender: Parameters<typeof suggestName>[2], origin: string | null) => {
-      if (!activeFamilyId) return
-      await suggestName(activeFamilyId, text, gender, origin)
+      if (!activeFamilyId || !userId) return
+      await suggestName(activeFamilyId, text, gender, origin, userId)
       reloadNames()
     },
-    [activeFamilyId, reloadNames],
+    [activeFamilyId, userId, reloadNames],
   )
 
   if (!isSupabaseConfigured) {

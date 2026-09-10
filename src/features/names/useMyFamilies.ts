@@ -75,12 +75,13 @@ export function useMyFamilies(userId: string | undefined): MyFamiliesState {
 
   const create = useCallback(
     async (name: string) => {
-      const family = await createFamily(name)
+      if (!userId) throw new Error("must be signed in to create a family")
+      const family = await createFamily(name, userId)
       reload()
       setActiveFamilyId(family.id)
       return family
     },
-    [reload, setActiveFamilyId],
+    [userId, reload, setActiveFamilyId],
   )
 
   const activeFamily = families.find((f) => f.id === activeFamilyId) ?? null
