@@ -3,10 +3,11 @@ import { supabase } from "@/lib/supabase"
 export const NAME_MAX_LENGTH = 60
 
 export type Gender = "boy" | "girl" | "unisex"
-export type Origin = "biblical" | "hebrew" | "israeli" | "international" | "arabic" | "european"
+export type Origin = "biblical" | "hebrew" | "israeli" | "international" | "arabic" | "european" | "greek"
 export type Meaning = "love" | "nature" | "light" | "strength" | "joy" | "freedom"
 export type Style = "classic" | "modern" | "unique" | "soft" | "traditional" | "vintage"
 export type Popularity = "popular" | "less_common" | "rare" | "very_rare"
+export type MeaningConfidence = "verified" | "uncertain"
 
 export type NameEntry = {
   id: string
@@ -24,6 +25,10 @@ export type NameEntry = {
   worksInternationally: boolean
   startsWith: string | null
   endsWith: string | null
+  /** The actual Hebrew meaning, as curated — never AI-generated, never translated or reworded. */
+  meaningHe: string | null
+  meaningSource: string | null
+  meaningConfidence: MeaningConfidence | null
   /** null = shared catalogue entry; set = this family's own suggestion. */
   familyId: string | null
   suggestedBy: string | null
@@ -51,6 +56,7 @@ type NameRow = {
   international: boolean
   arabic: boolean
   european: boolean
+  greek: boolean
   meaning_love: boolean
   meaning_nature: boolean
   meaning_light: boolean
@@ -63,15 +69,19 @@ type NameRow = {
   style_soft: boolean
   style_traditional: boolean
   style_vintage: boolean
+  meaning_he: string | null
+  meaning_source: string | null
+  meaning_confidence: MeaningConfidence | null
 }
 
 const SELECT_COLUMNS = `id, text, gender, origin, family_id, suggested_by, created_at, popularity, length, short,
   easy_in_english, works_internationally, starts_with, ends_with,
-  biblical, hebrew, israeli, international, arabic, european,
+  biblical, hebrew, israeli, international, arabic, european, greek,
   meaning_love, meaning_nature, meaning_light, meaning_strength, meaning_joy, meaning_freedom,
-  style_classic, style_modern, style_unique, style_soft, style_traditional, style_vintage`
+  style_classic, style_modern, style_unique, style_soft, style_traditional, style_vintage,
+  meaning_he, meaning_source, meaning_confidence`
 
-const ORIGIN_FLAGS: Origin[] = ["biblical", "hebrew", "israeli", "international", "arabic", "european"]
+const ORIGIN_FLAGS: Origin[] = ["biblical", "hebrew", "israeli", "international", "arabic", "european", "greek"]
 const MEANING_FLAGS: Meaning[] = ["love", "nature", "light", "strength", "joy", "freedom"]
 const STYLE_FLAGS: Style[] = ["classic", "modern", "unique", "soft", "traditional", "vintage"]
 
@@ -91,6 +101,9 @@ function fromRow(row: NameRow): NameEntry {
     worksInternationally: row.works_internationally,
     startsWith: row.starts_with,
     endsWith: row.ends_with,
+    meaningHe: row.meaning_he,
+    meaningSource: row.meaning_source,
+    meaningConfidence: row.meaning_confidence,
     familyId: row.family_id,
     suggestedBy: row.suggested_by,
     createdAt: row.created_at,
@@ -234,6 +247,8 @@ export type RankedName = {
   suggestedForFamilyId: string | null
   voteCount: number
   lastVotedAt: string
+  meaningHe: string | null
+  meaningConfidence: MeaningConfidence | null
 }
 
 type RankingRow = {
@@ -244,6 +259,8 @@ type RankingRow = {
   suggested_for_family_id: string | null
   vote_count: number
   last_voted_at: string
+  meaning_he: string | null
+  meaning_confidence: MeaningConfidence | null
 }
 
 /**
@@ -254,7 +271,7 @@ type RankingRow = {
 export async function fetchFamilyRanking(familyId: string): Promise<RankedName[]> {
   const { data, error } = await supabase
     .from("family_name_rankings")
-    .select("name_id, text, gender, origin, suggested_for_family_id, vote_count, last_voted_at")
+    .select("name_id, text, gender, origin, suggested_for_family_id, vote_count, last_voted_at, meaning_he, meaning_confidence")
     .eq("family_id", familyId)
     .order("vote_count", { ascending: false })
     .order("last_voted_at", { ascending: false })
@@ -267,5 +284,7 @@ export async function fetchFamilyRanking(familyId: string): Promise<RankedName[]
     suggestedForFamilyId: r.suggested_for_family_id,
     voteCount: r.vote_count,
     lastVotedAt: r.last_voted_at,
+    meaningHe: r.meaning_he,
+    meaningConfidence: r.meaning_confidence,
   }))
 }

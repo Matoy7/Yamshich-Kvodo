@@ -13,6 +13,7 @@ export const ORIGIN_OPTIONS: { value: Origin; label: string }[] = [
   { value: "international", label: "בינלאומי" },
   { value: "arabic", label: "ערבי" },
   { value: "european", label: "אירופאי" },
+  { value: "greek", label: "יווני" },
 ]
 
 export const MEANING_OPTIONS: { value: Meaning; label: string }[] = [

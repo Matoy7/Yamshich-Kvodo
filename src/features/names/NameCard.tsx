@@ -11,6 +11,8 @@ export type NameCardData = {
   text: string
   gender: "boy" | "girl" | "unisex" | null
   origin: string | null
+  meaningHe: string | null
+  meaningConfidence: "verified" | "uncertain" | null
   /** Non-null when this row is one family's private suggestion. */
   suggestedForFamilyId: string | null
 }
@@ -58,7 +60,16 @@ export function NameCard({ name, vote, disabled = false, onToggleVote }: NameCar
         ) : null}
       </div>
 
-      {name.origin ? (
+      {name.meaningHe ? (
+        <p className="mt-1 text-body-sm text-content-muted">
+          {name.meaningHe}
+          {name.meaningConfidence === "uncertain" ? (
+            <span className="ms-1 text-content-muted/70" title="מקור המשמעות אינו ודאי">
+              (לא ודאי)
+            </span>
+          ) : null}
+        </p>
+      ) : name.origin ? (
         <p className="mt-1 text-body-sm text-content-muted">{name.origin}</p>
       ) : null}
 

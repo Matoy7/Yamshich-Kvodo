@@ -37,6 +37,8 @@ export function RecommendedNames({ familyId, userId, refreshKey }: RecommendedNa
           text: n.text,
           gender: n.gender,
           origin: n.origin,
+          meaningHe: n.meaningHe,
+          meaningConfidence: n.meaningConfidence,
           suggestedForFamilyId: n.familyId,
         }))
         setNames(cards)

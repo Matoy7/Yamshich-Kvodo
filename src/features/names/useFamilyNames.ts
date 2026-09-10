@@ -15,6 +15,8 @@ function fromEntry(n: NameEntry): NameCardData {
     text: n.text,
     gender: n.gender,
     origin: n.origin,
+    meaningHe: n.meaningHe,
+    meaningConfidence: n.meaningConfidence,
     suggestedForFamilyId: n.familyId,
   }
 }
@@ -64,6 +66,8 @@ export function useFamilyNames(
               text: r.text,
               gender: r.gender,
               origin: r.origin,
+              meaningHe: r.meaningHe,
+              meaningConfidence: r.meaningConfidence,
               suggestedForFamilyId: r.suggestedForFamilyId,
             })),
           )
