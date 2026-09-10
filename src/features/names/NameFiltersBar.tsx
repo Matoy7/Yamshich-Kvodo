@@ -1,79 +1,135 @@
 import { cn } from "@/lib/cn"
-import type { Gender } from "@/data/names"
+import { FilterDropdown } from "./FilterDropdown"
+import { MoreFiltersDropdown, type MoreFilters } from "./MoreFiltersDropdown"
+import type { Gender, Origin, Meaning, Style, Popularity } from "@/data/names"
 
-const HEBREW_ALPHABET = [
-  "א", "ב", "ג", "ד", "ה", "ו", "ז", "ח", "ט", "י", "כ", "ל", "מ", "נ",
-  "ס", "ע", "פ", "צ", "ק", "ר", "ש", "ת",
+const GENDER_TABS: { value: Gender | undefined; label: string; tint: string }[] = [
+  { value: undefined, label: "כל השמות", tint: "all" },
+  { value: "boy", label: "בנים", tint: "boy" },
+  { value: "girl", label: "בנות", tint: "girl" },
+  { value: "unisex", label: "יוניסקס", tint: "unisex" },
 ]
 
-const GENDER_CHIPS: { value: Gender | undefined; label: string }[] = [
-  { value: undefined, label: "הכל" },
-  { value: "boy", label: "לבן" },
-  { value: "girl", label: "לבת" },
-  { value: "unisex", label: "יוניסקס" },
+// Soft, pastel per-gender tints — deliberately scoped to this one row rather
+// than added to the shared token file, since nothing else in the product
+// needs a blue/pink/purple scale.
+const TINTS: Record<string, { active: string; idle: string }> = {
+  all: {
+    active: "border-danger/30 bg-danger/10 text-danger",
+    idle: "border-border bg-surface text-content-secondary hover:bg-surface-hover",
+  },
+  boy: {
+    active: "border-[#b9cdfb] bg-[#eaf1ff] text-[#3054c4]",
+    idle: "border-border bg-surface text-content-secondary hover:bg-surface-hover",
+  },
+  girl: {
+    active: "border-[#f7c3da] bg-[#fdeef4] text-[#c23477]",
+    idle: "border-border bg-surface text-content-secondary hover:bg-surface-hover",
+  },
+  unisex: {
+    active: "border-border-strong bg-surface-muted text-accent",
+    idle: "border-border bg-surface text-content-secondary hover:bg-surface-hover",
+  },
+}
+
+const ORIGIN_OPTIONS: { value: Origin; label: string }[] = [
+  { value: "biblical", label: "מקראי" },
+  { value: "hebrew", label: "עברי" },
+  { value: "israeli", label: "ישראלי" },
+  { value: "international", label: "בינלאומי" },
+  { value: "arabic", label: "ערבי" },
+  { value: "european", label: "אירופאי" },
 ]
+
+const MEANING_OPTIONS: { value: Meaning; label: string }[] = [
+  { value: "love", label: "אהבה" },
+  { value: "nature", label: "טבע" },
+  { value: "light", label: "אור" },
+  { value: "strength", label: "עוצמה" },
+  { value: "joy", label: "שמחה" },
+  { value: "freedom", label: "חופש" },
+]
+
+const STYLE_OPTIONS: { value: Style; label: string }[] = [
+  { value: "classic", label: "קלאסי" },
+  { value: "modern", label: "מודרני" },
+  { value: "unique", label: "ייחודי" },
+  { value: "soft", label: "רך" },
+  { value: "traditional", label: "מסורתי" },
+  { value: "vintage", label: "וינטג'" },
+]
+
+const POPULARITY_OPTIONS: { value: Popularity; label: string }[] = [
+  { value: "popular", label: "פופולרי" },
+  { value: "less_common", label: "פחות נפוץ" },
+  { value: "rare", label: "נדיר" },
+  { value: "very_rare", label: "נדיר מאוד" },
+]
+
+export type NameFiltersValue = {
+  gender: Gender | undefined
+  origin: Origin | undefined
+  meaning: Meaning | undefined
+  style: Style | undefined
+  popularity: Popularity | undefined
+  more: MoreFilters
+}
 
 type NameFiltersBarProps = {
-  gender: Gender | undefined
-  initial: string | undefined
-  onChangeGender: (gender: Gender | undefined) => void
-  onChangeInitial: (initial: string | undefined) => void
+  value: NameFiltersValue
+  onChange: (value: NameFiltersValue) => void
 }
 
-function chipClass(active: boolean): string {
-  return cn(
-    "h-8 shrink-0 rounded-full border px-3 text-body-sm font-medium transition-colors duration-150",
-    active
-      ? "border-border-strong bg-surface-muted text-content-primary"
-      : "border-border bg-surface text-content-secondary hover:bg-surface-hover",
-  )
-}
+/**
+ * Two visual groups in one row, in the order a parent actually thinks in:
+ * who the name is for (the four gender tabs — soft-tinted, always visible,
+ * no dropdown needed since there are only four and picking one is the very
+ * first decision), then what characteristics matter (Origin / Meaning /
+ * Style / Popularity, each a small dropdown so six-to-eight options don't
+ * have to sit on screen at once), with "More Filters" last as the
+ * deliberate overflow for anything more specific.
+ */
+export function NameFiltersBar({ value, onChange }: NameFiltersBarProps) {
+  const set = <K extends keyof NameFiltersValue>(key: K, next: NameFiltersValue[K]) =>
+    onChange({ ...value, [key]: next })
 
-export function NameFiltersBar({ gender, initial, onChangeGender, onChangeInitial }: NameFiltersBarProps) {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-1.5">
-        {GENDER_CHIPS.map((chip) => (
-          <button
-            key={chip.label}
-            type="button"
-            onClick={() => onChangeGender(chip.value)}
-            className={chipClass(gender === chip.value)}
-          >
-            {chip.label}
-          </button>
-        ))}
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="למי מיועד השם">
+        {GENDER_TABS.map((tab) => {
+          const active = value.gender === tab.value
+          const tint = TINTS[tab.tint]
+          return (
+            <button
+              key={tab.label}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => set("gender", tab.value)}
+              className={cn(
+                "h-9 shrink-0 rounded-full border px-3.5 text-body-sm font-medium transition-colors duration-150",
+                active ? tint.active : tint.idle,
+              )}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
       </div>
 
-      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1" role="radiogroup" aria-label="אות ראשונה">
-        <button
-          type="button"
-          onClick={() => onChangeInitial(undefined)}
-          className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-full border text-body-sm font-medium transition-colors duration-150",
-            !initial
-              ? "border-border-strong bg-surface-muted text-content-primary"
-              : "border-border bg-surface text-content-secondary hover:bg-surface-hover",
-          )}
-          aria-label="כל האותיות"
-        >
-          #
-        </button>
-        {HEBREW_ALPHABET.map((letter) => (
-          <button
-            key={letter}
-            type="button"
-            onClick={() => onChangeInitial(letter === initial ? undefined : letter)}
-            className={cn(
-              "flex size-8 shrink-0 items-center justify-center rounded-full border text-body-sm font-medium transition-colors duration-150",
-              initial === letter
-                ? "border-border-strong bg-surface-muted text-content-primary"
-                : "border-border bg-surface text-content-secondary hover:bg-surface-hover",
-            )}
-          >
-            {letter}
-          </button>
-        ))}
+      <span aria-hidden className="mx-0.5 hidden h-5 w-px shrink-0 bg-border sm:block" />
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <FilterDropdown label="מקור" options={ORIGIN_OPTIONS} value={value.origin} onChange={(v) => set("origin", v)} />
+        <FilterDropdown label="משמעות" options={MEANING_OPTIONS} value={value.meaning} onChange={(v) => set("meaning", v)} />
+        <FilterDropdown label="סגנון" options={STYLE_OPTIONS} value={value.style} onChange={(v) => set("style", v)} />
+        <FilterDropdown
+          label="פופולריות"
+          options={POPULARITY_OPTIONS}
+          value={value.popularity}
+          onChange={(v) => set("popularity", v)}
+        />
+        <MoreFiltersDropdown value={value.more} onChange={(v) => set("more", v)} />
       </div>
     </div>
   )

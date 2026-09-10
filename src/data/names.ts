@@ -3,12 +3,20 @@ import { supabase } from "@/lib/supabase"
 export const NAME_MAX_LENGTH = 60
 
 export type Gender = "boy" | "girl" | "unisex"
+export type Origin = "biblical" | "hebrew" | "israeli" | "international" | "arabic" | "european"
+export type Meaning = "love" | "nature" | "light" | "strength" | "joy" | "freedom"
+export type Style = "classic" | "modern" | "unique" | "soft" | "traditional" | "vintage"
+export type Popularity = "popular" | "less_common" | "rare" | "very_rare"
 
 export type NameEntry = {
   id: string
   text: string
   gender: Gender | null
+  /** Free text today — the fixed Origin vocabulary is a filter option, not (yet) a column constraint. */
   origin: string | null
+  meaning: Meaning | null
+  style: Style | null
+  popularity: Popularity | null
   /** null = shared catalogue entry; set = this family's own suggestion. */
   familyId: string | null
   suggestedBy: string | null
@@ -20,10 +28,15 @@ type NameRow = {
   text: string
   gender: Gender | null
   origin: string | null
+  meaning: Meaning | null
+  style: Style | null
+  popularity: Popularity | null
   family_id: string | null
   suggested_by: string | null
   created_at: string
 }
+
+const SELECT_COLUMNS = "id, text, gender, origin, meaning, style, popularity, family_id, suggested_by, created_at"
 
 function fromRow(row: NameRow): NameEntry {
   return {
@@ -31,6 +44,9 @@ function fromRow(row: NameRow): NameEntry {
     text: row.text,
     gender: row.gender,
     origin: row.origin,
+    meaning: row.meaning,
+    style: row.style,
+    popularity: row.popularity,
     familyId: row.family_id,
     suggestedBy: row.suggested_by,
     createdAt: row.created_at,
@@ -40,6 +56,12 @@ function fromRow(row: NameRow): NameEntry {
 export type NameFilters = {
   gender?: Gender
   initial?: string
+  endsWith?: string
+  maxLength?: number
+  origin?: Origin
+  meaning?: Meaning
+  style?: Style
+  popularity?: Popularity
   search?: string
 }
 
@@ -49,23 +71,36 @@ export type NameFilters = {
  * null or family_id = eq(familyId)` reads exactly what the family is
  * allowed to see — nothing is filtered client-side that the server would
  * not also have allowed.
+ *
+ * origin is matched with ilike against free text (see the Origin type's
+ * comment) rather than eq, since the column isn't a controlled vocabulary —
+ * this only ever narrows correctly for names whose origin text actually
+ * contains the filter word.
  */
 export async function fetchNames(familyId: string, filters: NameFilters = {}): Promise<NameEntry[]> {
   let query = supabase
     .from("names")
-    .select("id, text, gender, origin, family_id, suggested_by, created_at")
+    .select(SELECT_COLUMNS)
     .or(`family_id.is.null,family_id.eq.${familyId}`)
 
   if (filters.gender) query = query.eq("gender", filters.gender)
   if (filters.initial) query = query.ilike("text", `${filters.initial}%`)
+  if (filters.endsWith) query = query.ilike("text", `%${filters.endsWith}`)
+  if (filters.origin) query = query.ilike("origin", `%${filters.origin}%`)
+  if (filters.meaning) query = query.eq("meaning", filters.meaning)
+  if (filters.style) query = query.eq("style", filters.style)
+  if (filters.popularity) query = query.eq("popularity", filters.popularity)
   if (filters.search) query = query.ilike("text", `%${filters.search}%`)
 
   const { data, error } = await query.order("text", { ascending: true })
   if (error) throw error
-  return (data as NameRow[]).map(fromRow)
+  let rows = (data as NameRow[]).map(fromRow)
+  // maxLength has no server-side column to filter on (it's derived from
+  // `text` itself) — cheap enough to apply client-side after the fetch.
+  if (filters.maxLength) rows = rows.filter((r) => r.text.trim().length <= filters.maxLength!)
+  return rows
 }
 
-/** Suggests a new name, private to one family. */
 /** Suggests a new name, private to one family. */
 export async function suggestName(
   familyId: string,
@@ -77,7 +112,7 @@ export async function suggestName(
   const { data, error } = await supabase
     .from("names")
     .insert({ family_id: familyId, text: text.trim(), gender, origin, suggested_by: suggestedBy })
-    .select("id, text, gender, origin, family_id, suggested_by, created_at")
+    .select(SELECT_COLUMNS)
     .single()
   if (error) throw error
   return fromRow(data as NameRow)
@@ -118,7 +153,7 @@ export async function fetchRecommendations(familyId: string, limit = 6): Promise
 
   const { data, error } = await supabase
     .from("names")
-    .select("id, text, gender, origin, family_id, suggested_by, created_at")
+    .select(SELECT_COLUMNS)
     .is("family_id", null)
     .in("gender", genders)
     .not("id", "in", `(${votedIds.join(",")})`)

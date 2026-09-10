@@ -25,10 +25,10 @@ import { useFamilyNames } from "@/features/names/useFamilyNames"
 import { FamilySwitcher } from "@/features/names/FamilySwitcher"
 import { SuggestNameForm } from "@/features/names/SuggestNameForm"
 import { NameGrid, type NameGridView } from "@/features/names/NameGrid"
-import { NameFiltersBar } from "@/features/names/NameFiltersBar"
+import { NameFiltersBar, type NameFiltersValue } from "@/features/names/NameFiltersBar"
 import { RecommendedNames } from "@/features/names/RecommendedNames"
 import { MyFamilyScreen } from "@/features/names/MyFamilyScreen"
-import { suggestName, type Gender } from "@/data/names"
+import { suggestName } from "@/data/names"
 import { redeemInvitation } from "@/data/families"
 
 const PRODUCT_NAME = "שם טוב"
@@ -47,8 +47,14 @@ export default function App() {
   const { session, loading: sessionLoading, displayName } = useSession()
   const [view, setView] = useState<View>("browse")
   const [searchQuery, setSearchQuery] = useState("")
-  const [genderFilter, setGenderFilter] = useState<Gender | undefined>(undefined)
-  const [initialFilter, setInitialFilter] = useState<string | undefined>(undefined)
+  const [filters, setFilters] = useState<NameFiltersValue>({
+    gender: undefined,
+    origin: undefined,
+    meaning: undefined,
+    style: undefined,
+    popularity: undefined,
+    more: { maxLength: undefined, initial: undefined, endsWith: undefined },
+  })
   const [linkResult, setLinkResult] = useState<LinkResult | null>(null)
   const [confirmGuestSignOut, setConfirmGuestSignOut] = useState(false)
 
@@ -93,8 +99,14 @@ export default function App() {
     toggleVote,
   } = useFamilyNames(activeFamilyId, userId, gridView, {
     search: searchQuery || undefined,
-    gender: genderFilter,
-    initial: initialFilter,
+    gender: filters.gender,
+    origin: filters.origin,
+    meaning: filters.meaning,
+    style: filters.style,
+    popularity: filters.popularity,
+    initial: filters.more.initial,
+    endsWith: filters.more.endsWith,
+    maxLength: filters.more.maxLength,
   })
 
   const handleJoinFamily = useCallback(
@@ -247,26 +259,20 @@ export default function App() {
                       ? "מדורג לפי מספר המצביעים השונים, ובשוויון — לפי ההצבעה האחרונה."
                       : "הקטלוג המשותף, יחד עם השמות שהמשפחה שלכם הציעה."
                   }
-                  actions={
-                    view === "browse" ? (
-                      <NameFiltersBar
-                        gender={genderFilter}
-                        initial={initialFilter}
-                        onChangeGender={setGenderFilter}
-                        onChangeInitial={setInitialFilter}
-                      />
-                    ) : undefined
-                  }
                 >
-                  <NameGrid
-                    names={names}
-                    votes={votes}
-                    view={gridView}
-                    loading={namesLoading}
-                    error={namesError}
-                    searchQuery={searchQuery}
-                    onToggleVote={toggleVote}
-                  />
+                  <div className="flex flex-col gap-4">
+                    {view === "browse" ? <NameFiltersBar value={filters} onChange={setFilters} /> : null}
+
+                    <NameGrid
+                      names={names}
+                      votes={votes}
+                      view={gridView}
+                      loading={namesLoading}
+                      error={namesError}
+                      searchQuery={searchQuery}
+                      onToggleVote={toggleVote}
+                    />
+                  </div>
                 </Section>
               </>
             )}
