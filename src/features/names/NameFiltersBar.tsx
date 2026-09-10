@@ -1,69 +1,14 @@
 import { cn } from "@/lib/cn"
 import { MultiFilterDropdown } from "./MultiFilterDropdown"
 import { MoreFiltersDropdown, type MoreFilters } from "./MoreFiltersDropdown"
+import { ORIGIN_OPTIONS, MEANING_OPTIONS, STYLE_OPTIONS, POPULARITY_OPTIONS } from "./filterOptions"
 import type { Gender, Origin, Meaning, Style, Popularity } from "@/data/names"
 
-const GENDER_TABS: { value: Gender | undefined; label: string; tint: string }[] = [
-  { value: undefined, label: "כל השמות", tint: "all" },
-  { value: "boy", label: "בנים", tint: "boy" },
-  { value: "girl", label: "בנות", tint: "girl" },
-  { value: "unisex", label: "יוניסקס", tint: "unisex" },
-]
-
-// Soft, pastel per-gender tints — deliberately scoped to this one row rather
-// than added to the shared token file, since nothing else in the product
-// needs a blue/pink/purple scale.
-const TINTS: Record<string, { active: string; idle: string }> = {
-  all: {
-    active: "border-danger/30 bg-danger/10 text-danger",
-    idle: "border-border bg-surface text-content-secondary hover:bg-surface-hover",
-  },
-  boy: {
-    active: "border-[#b9cdfb] bg-[#eaf1ff] text-[#3054c4]",
-    idle: "border-border bg-surface text-content-secondary hover:bg-surface-hover",
-  },
-  girl: {
-    active: "border-[#f7c3da] bg-[#fdeef4] text-[#c23477]",
-    idle: "border-border bg-surface text-content-secondary hover:bg-surface-hover",
-  },
-  unisex: {
-    active: "border-border-strong bg-surface-muted text-accent",
-    idle: "border-border bg-surface text-content-secondary hover:bg-surface-hover",
-  },
-}
-
-const ORIGIN_OPTIONS: { value: Origin; label: string }[] = [
-  { value: "biblical", label: "מקראי" },
-  { value: "hebrew", label: "עברי" },
-  { value: "israeli", label: "ישראלי" },
-  { value: "international", label: "בינלאומי" },
-  { value: "arabic", label: "ערבי" },
-  { value: "european", label: "אירופאי" },
-]
-
-const MEANING_OPTIONS: { value: Meaning; label: string }[] = [
-  { value: "love", label: "אהבה" },
-  { value: "nature", label: "טבע" },
-  { value: "light", label: "אור" },
-  { value: "strength", label: "עוצמה" },
-  { value: "joy", label: "שמחה" },
-  { value: "freedom", label: "חופש" },
-]
-
-const STYLE_OPTIONS: { value: Style; label: string }[] = [
-  { value: "classic", label: "קלאסי" },
-  { value: "modern", label: "מודרני" },
-  { value: "unique", label: "ייחודי" },
-  { value: "soft", label: "רך" },
-  { value: "traditional", label: "מסורתי" },
-  { value: "vintage", label: "וינטג'" },
-]
-
-const POPULARITY_OPTIONS: { value: Popularity; label: string }[] = [
-  { value: "popular", label: "פופולרי" },
-  { value: "less_common", label: "פחות נפוץ" },
-  { value: "rare", label: "נדיר" },
-  { value: "very_rare", label: "נדיר מאוד" },
+const GENDER_TABS: { value: Gender | undefined; label: string }[] = [
+  { value: undefined, label: "כל השמות" },
+  { value: "boy", label: "בנים" },
+  { value: "girl", label: "בנות" },
+  { value: "unisex", label: "יוניסקס" },
 ]
 
 export type NameFiltersValue = {
@@ -90,24 +35,31 @@ type NameFiltersBarProps = {
 }
 
 /**
- * Two visual groups in one row, in the order a parent actually thinks in:
- * who the name is for (the four gender tabs — soft-tinted, always visible,
- * single choice, no dropdown needed for a 4-way pick), then what
- * characteristics matter (Origin / Meaning / Style / Popularity, each a
- * multi-select dropdown — picking more than one inside a dropdown is "or",
- * e.g. Biblical + Hebrew), with "More Filters" last as the deliberate
- * overflow for anything more specific.
+ * Two visibly different kinds of control, on purpose:
+ *
+ * "Who it's for" is a segmented control — one shared pill-shaped track,
+ * the active choice filled solid. Segmented controls read as "pick exactly
+ * one of these" at a glance, which is exactly what gender is here.
+ *
+ * "What characteristics" (Origin/Meaning/Style/Popularity) are dropdown
+ * pills with a chevron — each opens a checklist, because more than one can
+ * be true at once. They never fill solid when active; a small count badge
+ * is the only in-bar signal, since the real "what's active" answer lives in
+ * the chip row below, not in this bar.
  */
 export function NameFiltersBar({ value, onChange }: NameFiltersBarProps) {
   const set = <K extends keyof NameFiltersValue>(key: K, next: NameFiltersValue[K]) =>
     onChange({ ...value, [key]: next })
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="למי מיועד השם">
+    <div className="flex flex-wrap items-center gap-2.5">
+      <div
+        role="radiogroup"
+        aria-label="למי מיועד השם"
+        className="flex shrink-0 items-center gap-0.5 rounded-full bg-surface-hover p-1"
+      >
         {GENDER_TABS.map((tab) => {
           const active = value.gender === tab.value
-          const tint = TINTS[tab.tint]
           return (
             <button
               key={tab.label}
@@ -116,8 +68,8 @@ export function NameFiltersBar({ value, onChange }: NameFiltersBarProps) {
               aria-checked={active}
               onClick={() => set("gender", tab.value)}
               className={cn(
-                "h-9 shrink-0 rounded-full border px-3.5 text-body-sm font-medium transition-colors duration-150",
-                active ? tint.active : tint.idle,
+                "h-7 shrink-0 rounded-full px-3 text-body-sm font-medium transition-colors duration-150",
+                active ? "bg-surface text-content-primary shadow-panel" : "text-content-secondary hover:text-content-primary",
               )}
             >
               {tab.label}

@@ -26,6 +26,7 @@ import { FamilySwitcher } from "@/features/names/FamilySwitcher"
 import { SuggestNameForm } from "@/features/names/SuggestNameForm"
 import { NameGrid, type NameGridView } from "@/features/names/NameGrid"
 import { NameFiltersBar, EMPTY_NAME_FILTERS, type NameFiltersValue } from "@/features/names/NameFiltersBar"
+import { ActiveFiltersRow } from "@/features/names/ActiveFiltersRow"
 import { RecommendedNames } from "@/features/names/RecommendedNames"
 import { MyFamilyScreen } from "@/features/names/MyFamilyScreen"
 import { suggestName } from "@/data/names"
@@ -48,6 +49,7 @@ export default function App() {
   const [view, setView] = useState<View>("browse")
   const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState<NameFiltersValue>(EMPTY_NAME_FILTERS)
+  const [sort, setSort] = useState<"alphabetical" | "popularity">("alphabetical")
   const [linkResult, setLinkResult] = useState<LinkResult | null>(null)
   const [confirmGuestSignOut, setConfirmGuestSignOut] = useState(false)
 
@@ -92,6 +94,7 @@ export default function App() {
     toggleVote,
   } = useFamilyNames(activeFamilyId, userId, gridView, {
     search: searchQuery || undefined,
+    sort: gridView === "browse" ? sort : undefined,
     gender: filters.gender,
     origins: filters.origins,
     meanings: filters.meanings,
@@ -256,10 +259,30 @@ export default function App() {
                   }
                 >
                   <div className="flex flex-col gap-4">
-                    {view === "browse" ? <NameFiltersBar value={filters} onChange={setFilters} /> : null}
+                    {view === "browse" ? (
+                      <>
+                        <NameFiltersBar value={filters} onChange={setFilters} />
+                        <ActiveFiltersRow value={filters} onChange={setFilters} />
+                      </>
+                    ) : null}
 
                     {!namesLoading && !namesError ? (
-                      <p className="text-body-sm text-content-muted">{names.length} שמות נמצאו</p>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-body-sm font-medium text-content-secondary">{names.length} שמות נמצאו</p>
+                        {view === "browse" ? (
+                          <label className="flex items-center gap-1.5 text-caption text-content-muted">
+                            מיון:
+                            <select
+                              value={sort}
+                              onChange={(e) => setSort(e.target.value as "alphabetical" | "popularity")}
+                              className="rounded-md border border-border bg-surface px-2 py-1 text-caption font-medium text-content-primary"
+                            >
+                              <option value="alphabetical">לפי א-ב</option>
+                              <option value="popularity">לפי פופולריות</option>
+                            </select>
+                          </label>
+                        ) : null}
+                      </div>
                     ) : null}
 
                     <NameGrid

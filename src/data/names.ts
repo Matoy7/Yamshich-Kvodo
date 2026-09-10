@@ -111,6 +111,8 @@ export type NameFilters = {
   easyInEnglish?: boolean
   worksInternationally?: boolean
   search?: string
+  /** "alphabetical" (default) or "popularity" — kept separate from the filter fields, per the sort/filter UI split. */
+  sort?: "alphabetical" | "popularity"
 }
 
 /**
@@ -153,7 +155,12 @@ export async function fetchNames(familyId: string, filters: NameFilters = {}): P
   if (filters.worksInternationally) query = query.eq("works_internationally", true)
   if (filters.search) query = query.ilike("text", `%${filters.search}%`)
 
-  const { data, error } = await query.order("text", { ascending: true })
+  const ordered =
+    filters.sort === "popularity"
+      ? query.order("popularity_score", { ascending: false, nullsFirst: false }).order("text", { ascending: true })
+      : query.order("text", { ascending: true })
+
+  const { data, error } = await ordered
   if (error) throw error
   return (data as NameRow[]).map(fromRow)
 }
