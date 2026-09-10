@@ -25,7 +25,7 @@ import { useFamilyNames } from "@/features/names/useFamilyNames"
 import { FamilySwitcher } from "@/features/names/FamilySwitcher"
 import { SuggestNameForm } from "@/features/names/SuggestNameForm"
 import { NameGrid, type NameGridView } from "@/features/names/NameGrid"
-import { NameFiltersBar, type NameFiltersValue } from "@/features/names/NameFiltersBar"
+import { NameFiltersBar, EMPTY_NAME_FILTERS, type NameFiltersValue } from "@/features/names/NameFiltersBar"
 import { RecommendedNames } from "@/features/names/RecommendedNames"
 import { MyFamilyScreen } from "@/features/names/MyFamilyScreen"
 import { suggestName } from "@/data/names"
@@ -47,14 +47,7 @@ export default function App() {
   const { session, loading: sessionLoading, displayName } = useSession()
   const [view, setView] = useState<View>("browse")
   const [searchQuery, setSearchQuery] = useState("")
-  const [filters, setFilters] = useState<NameFiltersValue>({
-    gender: undefined,
-    origin: undefined,
-    meaning: undefined,
-    style: undefined,
-    popularity: undefined,
-    more: { maxLength: undefined, initial: undefined, endsWith: undefined },
-  })
+  const [filters, setFilters] = useState<NameFiltersValue>(EMPTY_NAME_FILTERS)
   const [linkResult, setLinkResult] = useState<LinkResult | null>(null)
   const [confirmGuestSignOut, setConfirmGuestSignOut] = useState(false)
 
@@ -100,13 +93,15 @@ export default function App() {
   } = useFamilyNames(activeFamilyId, userId, gridView, {
     search: searchQuery || undefined,
     gender: filters.gender,
-    origin: filters.origin,
-    meaning: filters.meaning,
-    style: filters.style,
-    popularity: filters.popularity,
+    origins: filters.origins,
+    meanings: filters.meanings,
+    styles: filters.styles,
+    popularities: filters.popularities,
     initial: filters.more.initial,
     endsWith: filters.more.endsWith,
-    maxLength: filters.more.maxLength,
+    short: filters.more.short,
+    easyInEnglish: filters.more.easyInEnglish,
+    worksInternationally: filters.more.worksInternationally,
   })
 
   const handleJoinFamily = useCallback(
@@ -262,6 +257,10 @@ export default function App() {
                 >
                   <div className="flex flex-col gap-4">
                     {view === "browse" ? <NameFiltersBar value={filters} onChange={setFilters} /> : null}
+
+                    {!namesLoading && !namesError ? (
+                      <p className="text-body-sm text-content-muted">{names.length} שמות נמצאו</p>
+                    ) : null}
 
                     <NameGrid
                       names={names}

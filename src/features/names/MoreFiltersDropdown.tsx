@@ -6,10 +6,10 @@ const HEBREW_ALPHABET = [
   "ס", "ע", "פ", "צ", "ק", "ר", "ש", "ת",
 ]
 
-const SHORT_MAX_LENGTH = 4
-
 export type MoreFilters = {
-  maxLength: number | undefined
+  short: boolean
+  easyInEnglish: boolean
+  worksInternationally: boolean
   initial: string | undefined
   endsWith: string | undefined
 }
@@ -52,22 +52,40 @@ function LetterPicker({
   )
 }
 
-/**
- * Everything here that has real data behind it works: Short filters by
- * character count, and the two letter pickers narrow by prefix/suffix — the
- * same query the browse screen already ran, just exposed two more ways.
- *
- * "Easy to pronounce in English" and "Works internationally" are shown
- * disabled with a "coming soon" tag rather than wired to nothing: the
- * catalogue has no data for either yet, and a filter pill that silently
- * does nothing when tapped is worse than one that's honest about not being
- * ready.
- */
+function ToggleRow({
+  label,
+  checked,
+  onToggle,
+}: {
+  label: string
+  checked: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        "flex w-full items-center justify-between rounded-md border px-2.5 py-2 text-body-sm transition-colors duration-150",
+        checked
+          ? "border-border-strong bg-surface-muted font-medium text-content-primary"
+          : "border-border text-content-secondary hover:bg-surface-hover",
+      )}
+    >
+      <span>{label}</span>
+      {checked ? <span aria-hidden>✓</span> : null}
+    </button>
+  )
+}
+
+/** All five options here are backed by real columns on `names` — short, easy_in_english, works_internationally, starts_with, ends_with. */
 export function MoreFiltersDropdown({ value, onChange }: MoreFiltersDropdownProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const panelId = useId()
-  const activeCount = [value.maxLength, value.initial, value.endsWith].filter(Boolean).length
+  const activeCount = [value.short, value.easyInEnglish, value.worksInternationally, value.initial, value.endsWith].filter(
+    Boolean,
+  ).length
 
   useEffect(() => {
     if (!open) return
@@ -118,35 +136,18 @@ export function MoreFiltersDropdown({ value, onChange }: MoreFiltersDropdownProp
           )}
         >
           <div className="flex flex-col gap-4">
-            <button
-              type="button"
-              onClick={() =>
-                onChange({ ...value, maxLength: value.maxLength ? undefined : SHORT_MAX_LENGTH })
-              }
-              className={cn(
-                "flex w-full items-center justify-between rounded-md border px-2.5 py-2 text-body-sm transition-colors duration-150",
-                value.maxLength
-                  ? "border-border-strong bg-surface-muted font-medium text-content-primary"
-                  : "border-border text-content-secondary hover:bg-surface-hover",
-              )}
-            >
-              <span>קצר (עד {SHORT_MAX_LENGTH} אותיות)</span>
-              {value.maxLength ? <span aria-hidden>✓</span> : null}
-            </button>
-
-            <div className="flex flex-col gap-1 rounded-md border border-border-subtle px-2.5 py-2 opacity-60">
-              <div className="flex items-center justify-between">
-                <span className="text-body-sm text-content-muted">קל להגייה באנגלית</span>
-                <span className="rounded-full bg-surface-hover px-2 py-0.5 text-[10px] font-medium text-content-muted">
-                  בקרוב
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-body-sm text-content-muted">עובד גם בינלאומית</span>
-                <span className="rounded-full bg-surface-hover px-2 py-0.5 text-[10px] font-medium text-content-muted">
-                  בקרוב
-                </span>
-              </div>
+            <div className="flex flex-col gap-1.5">
+              <ToggleRow label="קצר" checked={value.short} onToggle={() => onChange({ ...value, short: !value.short })} />
+              <ToggleRow
+                label="קל להגייה באנגלית"
+                checked={value.easyInEnglish}
+                onToggle={() => onChange({ ...value, easyInEnglish: !value.easyInEnglish })}
+              />
+              <ToggleRow
+                label="עובד גם בינלאומית"
+                checked={value.worksInternationally}
+                onToggle={() => onChange({ ...value, worksInternationally: !value.worksInternationally })}
+              />
             </div>
 
             <LetterPicker

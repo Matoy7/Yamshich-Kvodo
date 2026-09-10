@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn"
-import { FilterDropdown } from "./FilterDropdown"
+import { MultiFilterDropdown } from "./MultiFilterDropdown"
 import { MoreFiltersDropdown, type MoreFilters } from "./MoreFiltersDropdown"
 import type { Gender, Origin, Meaning, Style, Popularity } from "@/data/names"
 
@@ -68,11 +68,20 @@ const POPULARITY_OPTIONS: { value: Popularity; label: string }[] = [
 
 export type NameFiltersValue = {
   gender: Gender | undefined
-  origin: Origin | undefined
-  meaning: Meaning | undefined
-  style: Style | undefined
-  popularity: Popularity | undefined
+  origins: Origin[]
+  meanings: Meaning[]
+  styles: Style[]
+  popularities: Popularity[]
   more: MoreFilters
+}
+
+export const EMPTY_NAME_FILTERS: NameFiltersValue = {
+  gender: undefined,
+  origins: [],
+  meanings: [],
+  styles: [],
+  popularities: [],
+  more: { short: false, easyInEnglish: false, worksInternationally: false, initial: undefined, endsWith: undefined },
 }
 
 type NameFiltersBarProps = {
@@ -83,11 +92,11 @@ type NameFiltersBarProps = {
 /**
  * Two visual groups in one row, in the order a parent actually thinks in:
  * who the name is for (the four gender tabs — soft-tinted, always visible,
- * no dropdown needed since there are only four and picking one is the very
- * first decision), then what characteristics matter (Origin / Meaning /
- * Style / Popularity, each a small dropdown so six-to-eight options don't
- * have to sit on screen at once), with "More Filters" last as the
- * deliberate overflow for anything more specific.
+ * single choice, no dropdown needed for a 4-way pick), then what
+ * characteristics matter (Origin / Meaning / Style / Popularity, each a
+ * multi-select dropdown — picking more than one inside a dropdown is "or",
+ * e.g. Biblical + Hebrew), with "More Filters" last as the deliberate
+ * overflow for anything more specific.
  */
 export function NameFiltersBar({ value, onChange }: NameFiltersBarProps) {
   const set = <K extends keyof NameFiltersValue>(key: K, next: NameFiltersValue[K]) =>
@@ -120,14 +129,19 @@ export function NameFiltersBar({ value, onChange }: NameFiltersBarProps) {
       <span aria-hidden className="mx-0.5 hidden h-5 w-px shrink-0 bg-border sm:block" />
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <FilterDropdown label="מקור" options={ORIGIN_OPTIONS} value={value.origin} onChange={(v) => set("origin", v)} />
-        <FilterDropdown label="משמעות" options={MEANING_OPTIONS} value={value.meaning} onChange={(v) => set("meaning", v)} />
-        <FilterDropdown label="סגנון" options={STYLE_OPTIONS} value={value.style} onChange={(v) => set("style", v)} />
-        <FilterDropdown
+        <MultiFilterDropdown label="מקור" options={ORIGIN_OPTIONS} values={value.origins} onChange={(v) => set("origins", v)} />
+        <MultiFilterDropdown
+          label="משמעות"
+          options={MEANING_OPTIONS}
+          values={value.meanings}
+          onChange={(v) => set("meanings", v)}
+        />
+        <MultiFilterDropdown label="סגנון" options={STYLE_OPTIONS} values={value.styles} onChange={(v) => set("styles", v)} />
+        <MultiFilterDropdown
           label="פופולריות"
           options={POPULARITY_OPTIONS}
-          value={value.popularity}
-          onChange={(v) => set("popularity", v)}
+          values={value.popularities}
+          onChange={(v) => set("popularities", v)}
         />
         <MoreFiltersDropdown value={value.more} onChange={(v) => set("more", v)} />
       </div>

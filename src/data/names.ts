@@ -12,11 +12,18 @@ export type NameEntry = {
   id: string
   text: string
   gender: Gender | null
-  /** Free text today — the fixed Origin vocabulary is a filter option, not (yet) a column constraint. */
+  /** Free text, e.g. "Biblical;Hebrew" — for display. Filtering uses the boolean flags below, not this string. */
   origin: string | null
-  meaning: Meaning | null
-  style: Style | null
+  origins: Origin[]
+  meanings: Meaning[]
+  styles: Style[]
   popularity: Popularity | null
+  length: number | null
+  short: boolean
+  easyInEnglish: boolean
+  worksInternationally: boolean
+  startsWith: string | null
+  endsWith: string | null
   /** null = shared catalogue entry; set = this family's own suggestion. */
   familyId: string | null
   suggestedBy: string | null
@@ -28,15 +35,45 @@ type NameRow = {
   text: string
   gender: Gender | null
   origin: string | null
-  meaning: Meaning | null
-  style: Style | null
-  popularity: Popularity | null
   family_id: string | null
   suggested_by: string | null
   created_at: string
+  popularity: Popularity | null
+  length: number | null
+  short: boolean
+  easy_in_english: boolean
+  works_internationally: boolean
+  starts_with: string | null
+  ends_with: string | null
+  biblical: boolean
+  hebrew: boolean
+  israeli: boolean
+  international: boolean
+  arabic: boolean
+  european: boolean
+  meaning_love: boolean
+  meaning_nature: boolean
+  meaning_light: boolean
+  meaning_strength: boolean
+  meaning_joy: boolean
+  meaning_freedom: boolean
+  style_classic: boolean
+  style_modern: boolean
+  style_unique: boolean
+  style_soft: boolean
+  style_traditional: boolean
+  style_vintage: boolean
 }
 
-const SELECT_COLUMNS = "id, text, gender, origin, meaning, style, popularity, family_id, suggested_by, created_at"
+const SELECT_COLUMNS = `id, text, gender, origin, family_id, suggested_by, created_at, popularity, length, short,
+  easy_in_english, works_internationally, starts_with, ends_with,
+  biblical, hebrew, israeli, international, arabic, european,
+  meaning_love, meaning_nature, meaning_light, meaning_strength, meaning_joy, meaning_freedom,
+  style_classic, style_modern, style_unique, style_soft, style_traditional, style_vintage`
+
+const ORIGIN_FLAGS: Origin[] = ["biblical", "hebrew", "israeli", "international", "arabic", "european"]
+const MEANING_FLAGS: Meaning[] = ["love", "nature", "light", "strength", "joy", "freedom"]
+const STYLE_FLAGS: Style[] = ["classic", "modern", "unique", "soft", "traditional", "vintage"]
 
 function fromRow(row: NameRow): NameEntry {
   return {
@@ -44,9 +81,16 @@ function fromRow(row: NameRow): NameEntry {
     text: row.text,
     gender: row.gender,
     origin: row.origin,
-    meaning: row.meaning,
-    style: row.style,
+    origins: ORIGIN_FLAGS.filter((o) => row[o]),
+    meanings: MEANING_FLAGS.filter((m) => row[`meaning_${m}` as keyof NameRow]),
+    styles: STYLE_FLAGS.filter((s) => row[`style_${s}` as keyof NameRow]),
     popularity: row.popularity,
+    length: row.length,
+    short: row.short,
+    easyInEnglish: row.easy_in_english,
+    worksInternationally: row.works_internationally,
+    startsWith: row.starts_with,
+    endsWith: row.ends_with,
     familyId: row.family_id,
     suggestedBy: row.suggested_by,
     createdAt: row.created_at,
@@ -54,14 +98,18 @@ function fromRow(row: NameRow): NameEntry {
 }
 
 export type NameFilters = {
+  /** Single-select — "who the name is for" is one choice, not several. */
   gender?: Gender
+  /** Each array is OR'd within itself; every non-empty filter (including across categories) is AND'd with the rest. */
+  origins?: Origin[]
+  meanings?: Meaning[]
+  styles?: Style[]
+  popularities?: Popularity[]
   initial?: string
   endsWith?: string
-  maxLength?: number
-  origin?: Origin
-  meaning?: Meaning
-  style?: Style
-  popularity?: Popularity
+  short?: boolean
+  easyInEnglish?: boolean
+  worksInternationally?: boolean
   search?: string
 }
 
@@ -72,10 +120,12 @@ export type NameFilters = {
  * allowed to see — nothing is filtered client-side that the server would
  * not also have allowed.
  *
- * origin is matched with ilike against free text (see the Origin type's
- * comment) rather than eq, since the column isn't a controlled vocabulary —
- * this only ever narrows correctly for names whose origin text actually
- * contains the filter word.
+ * Each `.or()` call below adds one more `or=(...)` query parameter to the
+ * PostgREST request; independent `or=` parameters are ANDed together by
+ * PostgREST, while the conditions listed inside a single call are ORed —
+ * so calling `.or()` once per category (Origin, Meaning, Style) is exactly
+ * "Girls AND (Biblical OR Hebrew) AND (Nature)", not one giant OR of
+ * everything selected.
  */
 export async function fetchNames(familyId: string, filters: NameFilters = {}): Promise<NameEntry[]> {
   let query = supabase
@@ -84,21 +134,28 @@ export async function fetchNames(familyId: string, filters: NameFilters = {}): P
     .or(`family_id.is.null,family_id.eq.${familyId}`)
 
   if (filters.gender) query = query.eq("gender", filters.gender)
-  if (filters.initial) query = query.ilike("text", `${filters.initial}%`)
-  if (filters.endsWith) query = query.ilike("text", `%${filters.endsWith}`)
-  if (filters.origin) query = query.ilike("origin", `%${filters.origin}%`)
-  if (filters.meaning) query = query.eq("meaning", filters.meaning)
-  if (filters.style) query = query.eq("style", filters.style)
-  if (filters.popularity) query = query.eq("popularity", filters.popularity)
+
+  if (filters.origins?.length) {
+    query = query.or(filters.origins.map((o) => `${o}.eq.true`).join(","))
+  }
+  if (filters.meanings?.length) {
+    query = query.or(filters.meanings.map((m) => `meaning_${m}.eq.true`).join(","))
+  }
+  if (filters.styles?.length) {
+    query = query.or(filters.styles.map((s) => `style_${s}.eq.true`).join(","))
+  }
+  if (filters.popularities?.length) query = query.in("popularity", filters.popularities)
+
+  if (filters.initial) query = query.eq("starts_with", filters.initial)
+  if (filters.endsWith) query = query.eq("ends_with", filters.endsWith)
+  if (filters.short) query = query.eq("short", true)
+  if (filters.easyInEnglish) query = query.eq("easy_in_english", true)
+  if (filters.worksInternationally) query = query.eq("works_internationally", true)
   if (filters.search) query = query.ilike("text", `%${filters.search}%`)
 
   const { data, error } = await query.order("text", { ascending: true })
   if (error) throw error
-  let rows = (data as NameRow[]).map(fromRow)
-  // maxLength has no server-side column to filter on (it's derived from
-  // `text` itself) — cheap enough to apply client-side after the fetch.
-  if (filters.maxLength) rows = rows.filter((r) => r.text.trim().length <= filters.maxLength!)
-  return rows
+  return (data as NameRow[]).map(fromRow)
 }
 
 /** Suggests a new name, private to one family. */
