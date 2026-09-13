@@ -7,6 +7,8 @@ type VoteButtonProps = {
   voted: boolean
   count: number
   disabled?: boolean
+  /** Shown as a native tooltip when disabled — e.g. "create a family to vote". */
+  disabledReason?: string
   onToggle: () => void
 }
 
@@ -21,6 +23,7 @@ export function VoteButton({
   voted,
   count,
   disabled = false,
+  disabledReason,
   onToggle,
 }: VoteButtonProps) {
   const [pop, setPop] = useState(false)
@@ -41,7 +44,8 @@ export function VoteButton({
       type="button"
       disabled={disabled}
       aria-pressed={voted}
-      aria-label={voted ? "הסר הצבעה מהשם" : "הצביעו לשם הזה"}
+      aria-label={disabled && disabledReason ? disabledReason : voted ? "הסר הצבעה מהשם" : "הצביעו לשם הזה"}
+      title={disabled ? disabledReason : undefined}
       onClick={(event) => {
         event.preventDefault()
         event.stopPropagation()

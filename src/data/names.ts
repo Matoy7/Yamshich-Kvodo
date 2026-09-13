@@ -142,11 +142,17 @@ export type NameFilters = {
  * "Girls AND (Biblical OR Hebrew) AND (Nature)", not one giant OR of
  * everything selected.
  */
-export async function fetchNames(familyId: string, filters: NameFilters = {}): Promise<NameEntry[]> {
-  let query = supabase
-    .from("names")
-    .select(SELECT_COLUMNS)
-    .or(`family_id.is.null,family_id.eq.${familyId}`)
+/**
+ * familyId is optional: signed out of any family, a user still sees the
+ * shared catalogue (family_id is null) — that's allowed by the same RLS
+ * policy that lets any signed-in member read it. Only a family's own
+ * private suggestions require actually belonging to that family, so those
+ * simply don't appear until familyId is set.
+ */
+export async function fetchNames(familyId: string | null, filters: NameFilters = {}): Promise<NameEntry[]> {
+  let query = supabase.from("names").select(SELECT_COLUMNS)
+
+  query = familyId ? query.or(`family_id.is.null,family_id.eq.${familyId}`) : query.is("family_id", null)
 
   if (filters.gender) query = query.eq("gender", filters.gender)
 

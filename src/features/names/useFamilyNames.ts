@@ -53,13 +53,27 @@ export function useFamilyNames(
   const filterKey = JSON.stringify(filters)
 
   useEffect(() => {
-    if (!familyId || !userId) return
+    // Browsing the shared catalogue needs no family — only ranking does,
+    // since a ranking is inherently "this family's votes". The caller is
+    // expected to not request view="ranking" without a familyId (see
+    // App.tsx, which only offers the ranking tab's content once a family
+    // is active); guarded here too so this hook is never the one that
+    // silently shows a stale or empty ranking.
+    if (!userId) return
+    if (view === "ranking" && !familyId) {
+      setNames([])
+      setVotes(new Map())
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     let active = true
     setLoading(true)
     setError(null)
 
     const load =
-      view === "ranking"
+      view === "ranking" && familyId
         ? fetchFamilyRanking(familyId).then((rows) =>
             rows.map((r) => ({
               nameId: r.nameId,
@@ -77,6 +91,10 @@ export function useFamilyNames(
       .then((rows) => {
         if (!active) return
         setNames(rows)
+        // Votes are scoped to a family — with none active there is nowhere
+        // for a vote to belong, so skip the fetch and leave every card
+        // unvoted rather than querying with a null family.
+        if (!familyId) return undefined
         return fetchVotes(
           rows.map((r) => r.nameId),
           familyId,
@@ -84,9 +102,13 @@ export function useFamilyNames(
         )
       })
       .then((voteMap) => {
-        if (!active || !voteMap) return
+        if (!active) return
+        if (!voteMap) {
+          setVotes(new Map())
+          return
+        }
         setVotes(voteMap)
-        for (const [nameId, state] of voteMap) seedVoteState(nameId, familyId, state.votedByMe)
+        for (const [nameId, state] of voteMap) seedVoteState(nameId, familyId!, state.votedByMe)
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : "שגיאה לא צפויה")
@@ -104,6 +126,9 @@ export function useFamilyNames(
 
   const toggleVote = useCallback(
     (nameId: string) => {
+      // No active family means nothing to scope a vote to — the vote
+      // button is expected to be disabled in this state (see NameCard),
+      // so reaching here without a familyId is a no-op, not an error.
       if (!familyId || !userId) return
       const current = votes.get(nameId)
       const wasVoted = current?.votedByMe ?? lastCommittedVote(nameId, familyId) ?? false

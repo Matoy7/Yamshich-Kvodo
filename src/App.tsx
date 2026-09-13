@@ -206,22 +206,16 @@ export default function App() {
           </Section>
         ) : familiesError ? (
           <EmptyState title="משהו השתבש" description={familiesError} />
-        ) : families.length === 0 ? (
-          <Section
-            title="עדיין אין לכם משפחה"
-            description="התחילו משפחה חדשה כדי להציע ולהצביע על שמות ביחד, או הצטרפו עם קוד הזמנה שקיבלתם."
-          >
-            <FamilySwitcher
-              families={families}
-              activeFamilyId={activeFamilyId}
-              onSelect={setActiveFamilyId}
-              onCreate={async (name) => { await handleCreateFamily(name) }}
-              onJoin={handleJoinFamily}
-            />
-          </Section>
         ) : (
           <>
-            <Section title="המשפחה הפעילה">
+            <Section
+              title="המשפחה הפעילה"
+              description={
+                families.length === 0
+                  ? "עיינו בשמות בלי הגבלה — כדי להציע שם, להצביע ולשתף עם המשפחה, צרו משפחה או הצטרפו לאחת."
+                  : undefined
+              }
+            >
               <FamilySwitcher
                 families={families}
                 activeFamilyId={activeFamilyId}
@@ -231,11 +225,23 @@ export default function App() {
               />
             </Section>
 
-            {view === "family" && activeFamily ? (
-              <MyFamilyScreen family={activeFamily} currentUserId={session.user.id} onRenamed={reloadFamilies} />
+            {view === "family" ? (
+              activeFamily ? (
+                <MyFamilyScreen family={activeFamily} currentUserId={session.user.id} onRenamed={reloadFamilies} />
+              ) : (
+                <EmptyState
+                  title="עדיין אין לכם משפחה"
+                  description="התחילו משפחה חדשה כדי להציע ולהצביע על שמות ביחד, או הצטרפו עם קוד הזמנה שקיבלתם — האפשרות למעלה."
+                />
+              )
+            ) : view === "ranking" && !activeFamilyId ? (
+              <EmptyState
+                title="הדירוג שייך למשפחה"
+                description="דירוג מבוסס על הצבעות של בני משפחה — צרו משפחה או הצטרפו לאחת כדי לראות אותו."
+              />
             ) : (
               <>
-                {view === "browse" ? (
+                {view === "browse" && activeFamilyId ? (
                   <>
                     <Section
                       title="הציעו שם למשפחה"
@@ -244,9 +250,7 @@ export default function App() {
                       <SuggestNameForm onSubmit={handleSuggestName} />
                     </Section>
 
-                    {activeFamilyId && userId ? (
-                      <RecommendedNames familyId={activeFamilyId} userId={userId} refreshKey={votes.size} />
-                    ) : null}
+                    {userId ? <RecommendedNames familyId={activeFamilyId} userId={userId} refreshKey={votes.size} /> : null}
                   </>
                 ) : null}
 
@@ -255,7 +259,9 @@ export default function App() {
                   description={
                     view === "ranking"
                       ? "מדורג לפי מספר המצביעים השונים, ובשוויון — לפי ההצבעה האחרונה."
-                      : "הקטלוג המשותף, יחד עם השמות שהמשפחה שלכם הציעה."
+                      : activeFamilyId
+                        ? "הקטלוג המשותף, יחד עם השמות שהמשפחה שלכם הציעה."
+                        : "הקטלוג המשותף של שם טוב — צרו משפחה כדי להציע שמות משלכם ולהצביע."
                   }
                 >
                   <div className="flex flex-col gap-4">
@@ -293,6 +299,7 @@ export default function App() {
                       error={namesError}
                       searchQuery={searchQuery}
                       onToggleVote={toggleVote}
+                      votingDisabled={!activeFamilyId}
                     />
                   </div>
                 </Section>

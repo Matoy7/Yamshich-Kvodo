@@ -13,6 +13,8 @@ type NameGridProps = {
   error: string | null
   searchQuery?: string
   onToggleVote: (nameId: string) => void
+  /** True before any family exists/is active — browsing still works, voting doesn't have anywhere to belong yet. */
+  votingDisabled?: boolean
 }
 
 const EMPTY_COPY: Record<NameGridView, { title: string; description: string }> = {
@@ -37,6 +39,7 @@ export function NameGrid({
   error,
   searchQuery,
   onToggleVote,
+  votingDisabled = false,
 }: NameGridProps) {
   if (loading) {
     return (
@@ -65,7 +68,12 @@ export function NameGrid({
     <ul className={GRID}>
       {names.map((name) => (
         <li key={name.nameId} className="flex">
-          <NameCard name={name} vote={votes.get(name.nameId)} onToggleVote={onToggleVote} />
+          <NameCard
+            name={name}
+            vote={votes.get(name.nameId)}
+            disabled={votingDisabled}
+            onToggleVote={onToggleVote}
+          />
         </li>
       ))}
     </ul>

@@ -33,6 +33,7 @@ type NameCardProps = {
   name: NameCardData
   vote: VoteState | undefined
   disabled?: boolean
+  disabledReason?: string
   onToggleVote: (nameId: string) => void
 }
 
@@ -43,7 +44,7 @@ type NameCardProps = {
  * voted: up to four generated avatars, matching the deterministic-avatar
  * pattern already used for authors elsewhere in the app.
  */
-export function NameCard({ name, vote, disabled = false, onToggleVote }: NameCardProps) {
+export function NameCard({ name, vote, disabled = false, disabledReason = "צרו משפחה כדי להצביע", onToggleVote }: NameCardProps) {
   const voterIds = vote?.voterIds ?? []
   const shown = voterIds.slice(0, 4)
   const overflow = voterIds.length - shown.length
@@ -97,6 +98,7 @@ export function NameCard({ name, vote, disabled = false, onToggleVote }: NameCar
           voted={vote?.votedByMe ?? false}
           count={vote?.count ?? 0}
           disabled={disabled}
+          disabledReason={disabledReason}
           onToggle={() => onToggleVote(name.nameId)}
         />
       </CardFooter>
