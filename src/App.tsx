@@ -5,10 +5,12 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { Modal } from "@/components/ui/Modal"
 import { Button } from "@/components/ui/Button"
 import { LoginScreen } from "@/features/auth/LoginScreen"
+import { GuestNameOnboarding } from "@/features/auth/GuestNameOnboarding"
 import { useSession } from "@/features/auth/useSession"
 import {
   canUpgradeAccount,
   displayNameFor,
+  isGuest,
   providerAvatarUrl,
 } from "@/features/auth/profile"
 import { useGeneratedAvatar } from "@/lib/avatar"
@@ -45,7 +47,7 @@ const NAV_ITEMS: { id: View; label: string; icon: string }[] = [
 ]
 
 export default function App() {
-  const { session, loading: sessionLoading, displayName } = useSession()
+  const { session, loading: sessionLoading, profileLoading, displayName, setDisplayName } = useSession()
   const [view, setView] = useState<View>("browse")
   const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState<NameFiltersValue>(EMPTY_NAME_FILTERS)
@@ -142,7 +144,7 @@ export default function App() {
     )
   }
 
-  if (sessionLoading) {
+  if (sessionLoading || (session && isGuest(session.user) && profileLoading)) {
     return (
       <main
         aria-busy="true"
@@ -167,6 +169,21 @@ export default function App() {
         brandName={PRODUCT_NAME}
         brandTagline={TAGLINE}
         privacyNote={PRIVACY_NOTE}
+      />
+    )
+  }
+
+  // A brand-new guest has a session but no display_name yet — asked for
+  // directly, once, rather than ever auto-generated. Returning guests keep
+  // whatever they chose the first time (see profile.ts), so this only ever
+  // shows once per guest identity. The profileLoading check above already
+  // ruled out "still fetching" as the reason displayName is null here.
+  if (isGuest(session.user) && displayName === null) {
+    return (
+      <GuestNameOnboarding
+        brandName={PRODUCT_NAME}
+        userId={session.user.id}
+        onChosen={setDisplayName}
       />
     )
   }

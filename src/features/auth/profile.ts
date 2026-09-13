@@ -1,6 +1,5 @@
 import type { User } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
-import { generateGuestName } from "./guestName"
 import { hasGoogleIdentity } from "./linkAccount"
 
 export type Profile = {
@@ -15,14 +14,11 @@ export type Profile = {
   updated_at: string
 }
 
-/** Used only until a generated name has been assigned. */
+/** Shown only for the brief moment before a guest has chosen their own name — never stored. */
 export const GUEST_DISPLAY_NAME = "אורח"
 
-/** Postgres unique-violation, raised when a generated name is already taken. */
+/** Postgres unique-violation — kept only for a friendly message if an old, not-yet-migrated database still enforces uniqueness. */
 const UNIQUE_VIOLATION = "23505"
-
-/** Plenty: the name space is ~362,500 combinations. */
-const NAME_ATTEMPTS = 8
 
 /**
  * True for a Supabase anonymous user.
@@ -106,9 +102,12 @@ export function providerAvatarUrl(user: User): string | null {
  * the caller's own row.
  *
  * Guests get a row too — the feed's foreign keys require one — but with no
- * email and no provider fields.
+ * email and no provider fields. Nothing here ever sets display_name for a
+ * guest: the omitted key in the upsert payload leaves an existing value
+ * untouched, and a brand-new guest simply has none yet, resolved by the
+ * caller returning null so the app can ask them to choose one.
  */
-export async function upsertProfile(user: User): Promise<string> {
+export async function upsertProfile(user: User): Promise<string | null> {
   const guest = isGuest(user)
   const metadata = (user.user_metadata ?? {}) as GoogleMetadata
   const fallback = splitName(metadata.full_name ?? metadata.name ?? "")
@@ -135,17 +134,19 @@ export async function upsertProfile(user: User): Promise<string> {
   if (error) throw error
 
   if (!guest) {
-    // Linked users are known by their provider name. Releasing the generated
-    // name also returns it to the pool for other guests.
+    // Linked users are known by their provider name. Releasing a
+    // guest-chosen name also frees it up — there is no uniqueness
+    // constraint to free it from, but there is no reason to keep a stale
+    // guest-era name sitting on a now-identified account either.
     const stored = await readDisplayName(user.id)
     if (stored) await releaseDisplayName(user.id)
     return displayNameFor(user)
   }
 
-  return ensureGuestDisplayName(user.id)
+  return readDisplayName(user.id)
 }
 
-/** Clears a generated name once the account is no longer a guest. */
+/** Clears a guest-chosen name once the account is no longer a guest. */
 async function releaseDisplayName(userId: string): Promise<void> {
   const { error } = await supabase
     .from("profiles")
@@ -188,31 +189,30 @@ async function readDisplayName(userId: string): Promise<string | null> {
   return (data as { display_name: string | null } | null)?.display_name ?? null
 }
 
+export const GUEST_NAME_MAX_LENGTH = 40
+
 /**
- * Resolves a guest's display name, generating one only the first time.
- *
- * A returning guest keeps the name already stored on their row, so the same
- * guest identity always shows the same name. Uniqueness is enforced by a
- * unique index rather than by looking for clashes first — profiles are private,
- * so the client cannot see whether another user holds a name. A clash comes
- * back as a unique violation and we simply try another combination.
+ * Saves the name a guest chose for themselves during onboarding — never
+ * generated, never suggested, never defaulted. The only validation is
+ * "not blank" and a sane length cap; anything the person actually typed is
+ * accepted as-is.
  */
-export async function ensureGuestDisplayName(userId: string): Promise<string> {
-  const existing = await readDisplayName(userId)
-  if (existing) return existing
+export async function chooseGuestDisplayName(userId: string, name: string): Promise<string> {
+  const trimmed = name.trim().slice(0, GUEST_NAME_MAX_LENGTH)
+  if (!trimmed) throw new Error("שם לא יכול להיות ריק")
 
-  for (let attempt = 0; attempt < NAME_ATTEMPTS; attempt += 1) {
-    const candidate = generateGuestName()
-    const { error: writeError } = await supabase
-      .from("profiles")
-      .update({ display_name: candidate })
-      .eq("id", userId)
+  const { error } = await supabase
+    .from("profiles")
+    .update({ display_name: trimmed })
+    .eq("id", userId)
 
-    if (!writeError) return candidate
-    assertMigrated(writeError)
-    if (writeError.code !== UNIQUE_VIOLATION) throw writeError
-    // Name taken — loop and pick another combination.
+  if (error) {
+    assertMigrated(error)
+    if (error.code === UNIQUE_VIOLATION) {
+      throw new Error("השם הזה כבר בשימוש. נסו שם אחר, או הוסיפו לו משהו קטן.")
+    }
+    throw error
   }
 
-  throw new Error("could not allocate a unique guest name")
+  return trimmed
 }

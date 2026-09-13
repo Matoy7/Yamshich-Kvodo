@@ -8,11 +8,20 @@ type SessionState = {
   /** True until the stored session has been read — render nothing decisive yet. */
   loading: boolean
   /**
-   * Resolved from the profile row: a guest's generated name, or the provider
-   * name. Null until the profile sync completes; callers fall back to
-   * `displayNameFor(session.user)` meanwhile.
+   * True while the profile row for the current session is being
+   * upserted/read. A guest with displayName still null while this is true
+   * simply hasn't finished loading — it does NOT yet mean "no name chosen".
+   */
+  profileLoading: boolean
+  /**
+   * Resolved from the profile row: a guest's chosen name (null until they've
+   * picked one — check profileLoading first), or the provider name. Callers
+   * fall back to `displayNameFor(session.user)` only as a transient loading
+   * label — never as a value written back to the profile.
    */
   displayName: string | null
+  /** Updates the in-memory name immediately after a guest chooses one, without waiting for a re-fetch. */
+  setDisplayName: (name: string) => void
 }
 
 /**
@@ -23,6 +32,7 @@ type SessionState = {
 export function useSession(): SessionState {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [profileLoading, setProfileLoading] = useState(false)
   const [displayName, setDisplayName] = useState<string | null>(null)
   const syncedUserId = useRef<string | null>(null)
 
@@ -45,6 +55,7 @@ export function useSession(): SessionState {
       const user = next?.user
       if (!user || syncedUserId.current === user.id) return
       syncedUserId.current = user.id
+      setProfileLoading(true)
       upsertProfile(user)
         .then((name) => {
           if (active) setDisplayName(name)
@@ -53,6 +64,9 @@ export function useSession(): SessionState {
           // Non-fatal: the signup trigger has already created the row.
           console.error("profile upsert failed", error)
           syncedUserId.current = null
+        })
+        .finally(() => {
+          if (active) setProfileLoading(false)
         })
     }
 
@@ -91,5 +105,5 @@ export function useSession(): SessionState {
     }
   }, [])
 
-  return { session, loading, displayName }
+  return { session, loading, profileLoading, displayName, setDisplayName }
 }
