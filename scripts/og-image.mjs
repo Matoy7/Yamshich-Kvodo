@@ -109,8 +109,8 @@ const html = `<!doctype html>
     background: var(--cream); opacity: 0.85;
   }
 
-  /* The concept, shown rather than described: one person opens a sentence,
-     another finishes it. Both bubbles shrink to their text — a stretched
+  /* The concept, shown rather than described: someone suggests a name, the
+     family votes on it. Both bubbles shrink to their text — a stretched
      bubble would read as a text field, not as speech. */
   .thread { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
   .bubble {
@@ -136,12 +136,12 @@ const html = `<!doctype html>
   <div class="portrait"><img src="data:image/png;base64,${portrait}" alt=""></div>
 
   <div class="copy">
-    <div class="brand">ימשיך כבודו</div>
-    <div class="tagline">אתה מתחיל. האינטרנט משלים.</div>
+    <div class="brand">שם טוב</div>
+    <div class="tagline">בוחרים ביחד. שם אחד טוב.</div>
     <div class="rule"></div>
     <div class="thread">
-      <div class="bubble open">בא לי לאכול היום…</div>
-      <div class="bubble close">…מה שאמא מבשלת</div>
+      <div class="bubble open">מה דעתכם על "נועה"?</div>
+      <div class="bubble close">❤️ כל המשפחה הצביעה</div>
     </div>
   </div>
 </body></html>`
