@@ -53,7 +53,7 @@ export function Topbar({
 
         <img
           src={assets.heroIllustration}
-          alt="איור של אישה כותבת ביומן"
+          alt="איור של יד תינוק שולפת פתק עם סימן שאלה מתוך קערת שמות"
           width={96}
           height={96}
           className="size-12 shrink-0 rounded-full bg-surface-secondary object-cover sm:size-20 md:size-24"

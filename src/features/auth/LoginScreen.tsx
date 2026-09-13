@@ -92,7 +92,7 @@ export function LoginScreen({
       <div className="flex w-full max-w-[380px] flex-col items-center gap-8 text-center">
         <img
           src={assets.heroIllustration}
-          alt="איור של אישה כותבת ביומן"
+          alt="איור של יד תינוק שולפת פתק עם סימן שאלה מתוך קערת שמות"
           width={160}
           height={160}
           className="size-32 shrink-0 rounded-full bg-surface-secondary object-cover md:size-40"
